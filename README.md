@@ -19,6 +19,7 @@ ArcPass combines a merchant passport with buyer-readable stablecoin payment link
 ## Database
 
 Set `DATABASE_URL` to the Supabase Transaction Pooler connection in `.env.local`.
+The migration enables RLS and revokes Supabase Data API access for every ArcPass table; database access is server-only.
 `DIRECT_URL` may be set to a Session Pooler connection for maintenance, but migrations use the working transaction connection by default.
 
 ```bash

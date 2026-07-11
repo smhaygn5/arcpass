@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clientKey, rateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { getRequestOrigin } from "@/lib/site";
 import {
   createMerchantChallenge,
   setMerchantSessionCookie,
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const address = req.nextUrl.searchParams.get("address") ?? "";
-    return NextResponse.json(await createMerchantChallenge({ address, origin: requestOrigin(req) }));
+    return NextResponse.json(await createMerchantChallenge({ address, origin: getRequestOrigin(req.nextUrl.origin) }));
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Merchant session challenge failed." },
@@ -49,11 +50,4 @@ export async function POST(req: NextRequest) {
       { status: 401 },
     );
   }
-}
-
-function requestOrigin(req: NextRequest) {
-  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-  const protocol = req.headers.get("x-forwarded-proto") ?? req.nextUrl.protocol.replace(":", "");
-
-  return host ? `${protocol}://${host}` : req.nextUrl.origin;
 }

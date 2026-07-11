@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Address } from "viem";
@@ -38,7 +38,7 @@ import {
   type VerifiedReceiptPayload,
 } from "@/lib/receipts";
 import { ensurePaymentNetwork, requestWalletAddress, signWalletMessage, walletErrorMessage } from "@/lib/wallet";
-import { shortAddress } from "@/lib/format";
+import { escapeCsvCell, shortAddress } from "@/lib/format";
 
 const WORKSPACE_TABS = [
   { id: "dashboard", label: "Dashboard" },
@@ -1523,7 +1523,7 @@ function exportReceiptReport(receipts: SavedReceipt[]) {
 }
 
 function downloadCsv(filename: string, rows: string[][]) {
-  const csv = rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
+  const csv = rows.map((row) => row.map(escapeCsvCell).join(",")).join("\r\n");
   const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
   const link = document.createElement("a");
 
@@ -1536,9 +1536,6 @@ function downloadCsv(filename: string, rows: string[][]) {
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-function csvCell(value: string) {
-  return `"${value.replaceAll('"', '""')}"`;
-}
 
 function reportFileDate() {
   return new Date().toISOString().slice(0, 10);

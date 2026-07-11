@@ -1,11 +1,14 @@
+import { createHash } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { databaseConfigured, getDatabase } from "./server-database.ts";
 
 type Bucket = { count: number; resetAt: number };
 type DatabaseBucket = { request_count: number; retry_after: number | string };
 
+const DATABASE_PRUNE_INTERVAL_MS = 5 * 60 * 1000;
 const MAX_TRACKED_KEYS = 5000;
 const buckets = new Map<string, Bucket>();
+let lastDatabasePruneAt = 0;
 
 export async function rateLimit(
   key: string,
@@ -14,6 +17,7 @@ export async function rateLimit(
 ): Promise<{ ok: boolean; retryAfter: number }> {
   if (databaseConfigured()) {
     const sql = getDatabase();
+    await pruneExpiredDatabaseBuckets();
     const resetAt = new Date(Date.now() + windowMs).toISOString();
     const rows = await sql`
       insert into arcpass_rate_limits (rate_key, request_count, reset_at)
@@ -38,8 +42,14 @@ export async function rateLimit(
 }
 
 export function clientKey(req: NextRequest): string {
-  const forwarded = req.headers.get("x-forwarded-for");
-  return forwarded?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
+  const forwarded =
+    req.headers.get("x-vercel-forwarded-for") ??
+    req.headers.get("x-forwarded-for") ??
+    req.headers.get("x-real-ip") ??
+    "unknown";
+  const address = forwarded.split(",")[0]?.trim() || "unknown";
+
+  return createHash("sha256").update(address).digest("hex").slice(0, 32);
 }
 
 export function tooManyRequests(retryAfter: number): NextResponse {
@@ -47,6 +57,15 @@ export function tooManyRequests(retryAfter: number): NextResponse {
     { error: "Too many requests. Please slow down and try again shortly." },
     { status: 429, headers: { "retry-after": String(Math.max(1, retryAfter)) } },
   );
+}
+
+async function pruneExpiredDatabaseBuckets() {
+  const now = Date.now();
+  if (now - lastDatabasePruneAt < DATABASE_PRUNE_INTERVAL_MS) return;
+
+  lastDatabasePruneAt = now;
+  const sql = getDatabase();
+  await sql`delete from arcpass_rate_limits where reset_at <= now()`;
 }
 
 function memoryRateLimit(key: string, limit: number, windowMs: number) {

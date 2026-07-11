@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAddress, isAddress } from "viem";
-import { decodeInvoicePayload } from "@/lib/arcpass";
+import { decodeInvoicePayload, invoiceExpired } from "@/lib/arcpass";
 import { clientKey, rateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { getRequestOrigin } from "@/lib/site";
 import { verifyMerchantDomain } from "@/lib/server-domain-verification";
 import { requireMerchantSession } from "@/lib/server-merchant-session";
 import { loadServerInvoices, saveServerInvoice } from "@/lib/server-invoices";
@@ -42,6 +43,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invoice payload is invalid." }, { status: 400 });
   }
 
+  if (invoiceExpired(invoice)) {
+    return NextResponse.json({ error: "Expired invoices cannot be registered." }, { status: 410 });
+  }
+
   const session = await requireMerchantSession(req, invoice.merchant.walletAddress);
   if (!session.ok) {
     return NextResponse.json({ error: session.error }, { status: session.status });
@@ -61,13 +66,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const saved = await saveServerInvoice({ invoice, origin: requestOrigin(req) });
+  const saved = await saveServerInvoice({ invoice, origin: getRequestOrigin(req.nextUrl.origin) });
   return NextResponse.json({ invoice: saved, saved: true });
-}
-
-function requestOrigin(req: NextRequest) {
-  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-  const protocol = req.headers.get("x-forwarded-proto") ?? req.nextUrl.protocol.replace(":", "");
-
-  return host ? `${protocol}://${host}` : req.nextUrl.origin;
 }

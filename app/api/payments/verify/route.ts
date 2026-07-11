@@ -13,9 +13,11 @@ import {
   ARCPASS_TOKENS,
   decodeInvoicePayload,
   invoiceAmountRaw,
+  invoiceExpired,
   paymentReceiptUrl,
 } from "@/lib/arcpass";
 import { clientKey, rateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { getRequestOrigin } from "@/lib/site";
 import type { VerifiedReceiptPayload } from "@/lib/receipts";
 import { findServerInvoiceByPayload } from "@/lib/server-invoices";
 import {
@@ -117,6 +119,15 @@ export async function POST(req: NextRequest) {
         verified: true,
       });
     }
+    if (invoiceExpired(invoice)) {
+      return NextResponse.json(
+        {
+          error: "This invoice has expired and can no longer accept a payment.",
+          verified: false,
+        },
+        { status: 410 },
+      );
+    }
 
     const receipt = await publicClient.getTransactionReceipt({ hash: txHash as Hash });
 
@@ -189,7 +200,7 @@ export async function POST(req: NextRequest) {
     try {
       await saveServerReceipt({
         invoice,
-        origin: requestOrigin(req),
+        origin: getRequestOrigin(req.nextUrl.origin),
         payload,
         receipt: verifiedReceipt,
       });
@@ -202,10 +213,10 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ ...verifiedReceipt, serverSaved });
-  } catch (err) {
+  } catch {
     return NextResponse.json(
       {
-        error: err instanceof Error ? err.message : "Payment verification failed.",
+        error: "Transaction could not be found or verified on Arc Testnet.",
         explorerUrl: paymentReceiptUrl(txHash),
         verified: false,
       },
@@ -223,11 +234,4 @@ function transactionAssignmentConflict(txHash: string) {
     },
     { status: 409 },
   );
-}
-
-function requestOrigin(req: NextRequest) {
-  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-  const protocol = req.headers.get("x-forwarded-proto") ?? req.nextUrl.protocol.replace(":", "");
-
-  return host ? `${protocol}://${host}` : req.nextUrl.origin;
 }

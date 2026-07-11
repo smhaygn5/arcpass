@@ -1,4 +1,4 @@
-﻿import { test } from "node:test";
+import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rmdir, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -12,11 +12,13 @@ import {
   encodeInvoicePayload,
   invoiceAmountRaw,
   invoiceHash,
+  MAX_INVOICE_PAYLOAD_LENGTH,
   normalizeDomain,
   trustScore,
 } from "./arcpass.ts";
 import { createSavedInvoice, invoiceStatus, mergeSavedInvoices } from "./invoices.ts";
 import { extractInvoicePayload, mergeSavedReceipts, type SavedReceipt } from "./receipts.ts";
+import { escapeCsvCell } from "./format.ts";
 
 const walletAddress = "0x1111111111111111111111111111111111111111";
 
@@ -65,6 +67,30 @@ test("rejects tampered invoice payload", () => {
   assert.equal(decodeInvoicePayload("not-a-valid-payload"), null);
 });
 
+test("rejects oversized and expired invoice input", () => {
+  assert.equal(decodeInvoicePayload("a".repeat(MAX_INVOICE_PAYLOAD_LENGTH + 1)), null);
+
+  const merchant = createMerchantPassport({
+    businessName: "Arc Merchant",
+    domain: "merchant.example",
+    refundPolicy: "merchant-refund",
+    walletAddress,
+  });
+
+  assert.throws(() => createInvoice({
+    amount: "5.00",
+    description: "Expired invoice",
+    expiresAt: new Date(Date.now() - 60_000).toISOString(),
+    merchant,
+    token: "USDC",
+  }), /future/);
+});
+
+test("neutralizes spreadsheet formulas in CSV cells", () => {
+  assert.equal(escapeCsvCell("=1+1"), "\"'=1+1\"");
+  assert.equal(escapeCsvCell(" @SUM(A1:A2)"), "\"' @SUM(A1:A2)\"");
+  assert.equal(escapeCsvCell("Normal value"), "\"Normal value\"");
+});
 test("extracts invoice payload from checkout links", () => {
   assert.equal(extractInvoicePayload("https://merchant.example/pay/abc_DEF-123?utm=test"), "abc_DEF-123");
   assert.equal(extractInvoicePayload("http://localhost:3000/pay/payload_hash#receipt"), "payload_hash");

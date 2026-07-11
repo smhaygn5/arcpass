@@ -49,3 +49,18 @@ create table if not exists arcpass_rate_limits (
 
 create index if not exists arcpass_rate_limits_expiry_idx
   on arcpass_rate_limits (reset_at);
+-- ArcPass is server-only. Block Supabase Data API roles even if public schema
+-- grants are enabled at the project level.
+alter table public.arcpass_invoices enable row level security;
+alter table public.arcpass_receipts enable row level security;
+alter table public.arcpass_merchant_challenges enable row level security;
+alter table public.arcpass_merchant_sessions enable row level security;
+alter table public.arcpass_rate_limits enable row level security;
+
+revoke all privileges on table
+  public.arcpass_invoices,
+  public.arcpass_receipts,
+  public.arcpass_merchant_challenges,
+  public.arcpass_merchant_sessions,
+  public.arcpass_rate_limits
+from anon, authenticated, public;

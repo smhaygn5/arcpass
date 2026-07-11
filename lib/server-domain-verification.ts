@@ -1,13 +1,29 @@
 import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
+import { request } from "node:https";
+import { isIP, type LookupFunction } from "node:net";
 import { getAddress, isAddress } from "viem";
 import { normalizeDomain } from "./arcpass.ts";
+
+const MANIFEST_TIMEOUT_MS = 6_000;
+const MAX_MANIFEST_BYTES = 32 * 1024;
+const MAX_MANIFEST_BUSINESS_NAME_LENGTH = 120;
+const MAX_PINNED_ADDRESSES = 4;
 
 type ArcPassManifest = {
   businessName?: unknown;
   domain?: unknown;
   service?: unknown;
   walletAddress?: unknown;
+};
+
+type ManifestResponse = {
+  body: string;
+  statusCode: number;
+};
+
+type ResolvedAddress = {
+  address: string;
+  family: number;
 };
 
 export type MerchantDomainVerification = {
@@ -60,13 +76,12 @@ export async function verifyMerchantDomain({
       };
     }
 
-    const res = await fetch(manifestUrl, {
-      cache: "no-store",
-      redirect: "error",
-      signal: AbortSignal.timeout(6_000),
-    });
+    const response = await requestPinnedManifest(
+      manifestUrl,
+      addresses.slice(0, MAX_PINNED_ADDRESSES),
+    );
 
-    if (!res.ok) {
+    if (response.statusCode < 200 || response.statusCode >= 300) {
       return {
         businessName: null,
         error: "ArcPass manifest was not found.",
@@ -76,7 +91,7 @@ export async function verifyMerchantDomain({
       };
     }
 
-    const manifest = await res.json().catch(() => null) as ArcPassManifest | null;
+    const manifest = JSON.parse(response.body) as ArcPassManifest;
     const manifestWallet =
       typeof manifest?.walletAddress === "string" && isAddress(manifest.walletAddress)
         ? getAddress(manifest.walletAddress)
@@ -96,8 +111,15 @@ export async function verifyMerchantDomain({
       };
     }
 
+    const businessName =
+      typeof manifest.businessName === "string" &&
+      manifest.businessName.trim().length > 0 &&
+      manifest.businessName.trim().length <= MAX_MANIFEST_BUSINESS_NAME_LENGTH
+        ? manifest.businessName.trim()
+        : null;
+
     return {
-      businessName: typeof manifest.businessName === "string" ? manifest.businessName : null,
+      businessName,
       manifestUrl,
       status: 200,
       verified: true,
@@ -149,4 +171,76 @@ export function isPublicIpAddress(address: string) {
   }
 
   return false;
+}
+
+async function requestPinnedManifest(url: string, addresses: ResolvedAddress[]) {
+  let lastError: unknown = new Error("Merchant domain has no reachable public address.");
+
+  for (const address of addresses) {
+    try {
+      return await requestManifestAtAddress(url, address);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError;
+}
+
+function requestManifestAtAddress(url: string, target: ResolvedAddress): Promise<ManifestResponse> {
+  return new Promise((resolve, reject) => {
+    const pinnedLookup: LookupFunction = (_hostname, options, callback) => {
+      if (options.all) {
+        callback(null, [{ address: target.address, family: target.family }]);
+        return;
+      }
+
+      callback(null, target.address, target.family);
+    };
+
+    const req = request(
+      url,
+      {
+        headers: {
+          accept: "application/json",
+          "user-agent": "ArcPass/1.0",
+        },
+        lookup: pinnedLookup,
+        method: "GET",
+      },
+      (res) => {
+        const declaredLength = Number(res.headers["content-length"] ?? 0);
+        if (declaredLength > MAX_MANIFEST_BYTES) {
+          res.resume();
+          reject(new Error("ArcPass manifest is too large."));
+          return;
+        }
+
+        const chunks: Buffer[] = [];
+        let receivedBytes = 0;
+
+        res.on("data", (chunk: Buffer) => {
+          receivedBytes += chunk.length;
+          if (receivedBytes > MAX_MANIFEST_BYTES) {
+            res.destroy(new Error("ArcPass manifest is too large."));
+            return;
+          }
+          chunks.push(Buffer.from(chunk));
+        });
+        res.on("end", () => {
+          resolve({
+            body: Buffer.concat(chunks).toString("utf8"),
+            statusCode: res.statusCode ?? 0,
+          });
+        });
+        res.on("error", reject);
+      },
+    );
+
+    req.setTimeout(MANIFEST_TIMEOUT_MS, () => {
+      req.destroy(new Error("ArcPass manifest request timed out."));
+    });
+    req.on("error", reject);
+    req.end();
+  });
 }

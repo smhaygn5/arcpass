@@ -10,6 +10,13 @@ import {
 import { arcScanAddressUrl, arcScanTxUrl } from "./arc-chain.ts";
 
 export const ARCPASS_VERSION = 1;
+export const MAX_INVOICE_PAYLOAD_LENGTH = 16_384;
+
+const MAX_AMOUNT_LENGTH = 64;
+const MAX_BUSINESS_NAME_LENGTH = 120;
+const MAX_DESCRIPTION_LENGTH = 280;
+const MAX_DOMAIN_LENGTH = 253;
+const MAX_ID_LENGTH = 80;
 
 export type ArcPassTokenSymbol = "USDC" | "EURC";
 export type PassportStatus = "verified" | "pending" | "unverified";
@@ -83,15 +90,20 @@ export function createMerchantPassport(input: {
     throw new Error("Merchant wallet address is invalid.");
   }
 
+  const businessName = input.businessName.trim() || "ArcPass Merchant";
+  if (businessName.length > MAX_BUSINESS_NAME_LENGTH) {
+    throw new Error(`Merchant name cannot exceed ${MAX_BUSINESS_NAME_LENGTH} characters.`);
+  }
+
   const domain = normalizeDomain(input.domain);
-  if (!domain) {
-    throw new Error("Merchant domain is required.");
+  if (!domain || domain.length > MAX_DOMAIN_LENGTH) {
+    throw new Error("Merchant domain is invalid.");
   }
 
   const walletAddress = getAddress(input.walletAddress);
 
   return {
-    businessName: input.businessName.trim() || "ArcPass Merchant",
+    businessName,
     createdAt: new Date().toISOString(),
     domain,
     passportId: createShortId("pass"),
@@ -110,19 +122,21 @@ export function createInvoice(input: {
 }): ArcPassInvoice {
   assertValidAmount(input.amount, input.token);
 
-  if (!input.description.trim()) {
-    throw new Error("Invoice description is required.");
+  const description = input.description.trim();
+  if (!description || description.length > MAX_DESCRIPTION_LENGTH) {
+    throw new Error(`Invoice description must be between 1 and ${MAX_DESCRIPTION_LENGTH} characters.`);
   }
 
-  if (Number.isNaN(new Date(input.expiresAt).getTime())) {
-    throw new Error("Invoice expiry date is invalid.");
+  const expiresAt = new Date(input.expiresAt);
+  if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
+    throw new Error("Invoice expiry date must be in the future.");
   }
 
   return {
     amount: normalizeAmount(input.amount),
     createdAt: new Date().toISOString(),
-    description: input.description.trim(),
-    expiresAt: new Date(input.expiresAt).toISOString(),
+    description,
+    expiresAt: expiresAt.toISOString(),
     invoiceId: createShortId("inv"),
     merchant: input.merchant,
     token: input.token,
@@ -131,16 +145,23 @@ export function createInvoice(input: {
 }
 
 export function encodeInvoicePayload(invoice: ArcPassInvoice) {
-  return base64UrlEncode(JSON.stringify(invoice));
+  const payload = base64UrlEncode(JSON.stringify(invoice));
+  if (payload.length > MAX_INVOICE_PAYLOAD_LENGTH) {
+    throw new Error("Invoice payload is too large.");
+  }
+  return payload;
 }
 
 export function decodeInvoicePayload(payload: string): ArcPassInvoice | null {
   try {
+    if (!payload || payload.length > MAX_INVOICE_PAYLOAD_LENGTH) return null;
+
     const invoice = JSON.parse(base64UrlDecode(payload)) as Partial<ArcPassInvoice>;
     if (invoice.version !== ARCPASS_VERSION) return null;
-    if (!invoice.invoiceId || typeof invoice.invoiceId !== "string") return null;
+    if (!invoice.invoiceId || typeof invoice.invoiceId !== "string" || invoice.invoiceId.length > MAX_ID_LENGTH) return null;
     if (!invoice.description || typeof invoice.description !== "string") return null;
-    if (!invoice.amount || typeof invoice.amount !== "string") return null;
+    if (!invoice.description.trim() || invoice.description.trim().length > MAX_DESCRIPTION_LENGTH) return null;
+    if (!invoice.amount || typeof invoice.amount !== "string" || invoice.amount.length > MAX_AMOUNT_LENGTH) return null;
     if (!invoice.token || !(invoice.token in ARCPASS_TOKENS)) return null;
     if (!invoice.createdAt || Number.isNaN(new Date(invoice.createdAt).getTime())) return null;
     if (!invoice.expiresAt || Number.isNaN(new Date(invoice.expiresAt).getTime())) return null;
@@ -252,8 +273,13 @@ function normalizeMerchantPassport(value: Partial<MerchantPassport>) {
   if (!value.walletAddress || !isAddress(value.walletAddress)) return null;
   if (!value.domain || typeof value.domain !== "string") return null;
   if (!value.businessName || typeof value.businessName !== "string") return null;
-  if (!value.passportId || typeof value.passportId !== "string") return null;
+  if (!value.passportId || typeof value.passportId !== "string" || value.passportId.length > MAX_ID_LENGTH) return null;
   if (!value.createdAt || Number.isNaN(new Date(value.createdAt).getTime())) return null;
+
+  const businessName = value.businessName.trim();
+  const domain = normalizeDomain(value.domain);
+  if (!businessName || businessName.length > MAX_BUSINESS_NAME_LENGTH) return null;
+  if (!domain || domain.length > MAX_DOMAIN_LENGTH) return null;
 
   const refundPolicy = value.refundPolicy ?? "none";
   if (!["none", "merchant-refund", "escrow-window"].includes(refundPolicy)) return null;
@@ -262,9 +288,9 @@ function normalizeMerchantPassport(value: Partial<MerchantPassport>) {
   if (!["verified", "pending", "unverified"].includes(status)) return null;
 
   return {
-    businessName: value.businessName.trim(),
+    businessName,
     createdAt: new Date(value.createdAt).toISOString(),
-    domain: normalizeDomain(value.domain),
+    domain,
     passportId: value.passportId,
     refundPolicy,
     status,
@@ -273,6 +299,10 @@ function normalizeMerchantPassport(value: Partial<MerchantPassport>) {
 }
 
 function assertValidAmount(amount: string, token: ArcPassTokenSymbol) {
+  if (amount.length > MAX_AMOUNT_LENGTH) {
+    throw new Error("Invoice amount is too large.");
+  }
+
   const normalized = normalizeAmount(amount);
   const decimals = ARCPASS_TOKENS[token].decimals;
   const [, fractional = ""] = normalized.split(".");

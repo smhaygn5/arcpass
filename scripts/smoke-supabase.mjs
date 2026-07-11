@@ -29,6 +29,12 @@ const invoice = {
   version: 1,
 };
 const payload = Buffer.from(JSON.stringify(invoice), "utf8").toString("base64url");
+const expiredInvoiceId = `inv_expired_${Date.now().toString(36)}`;
+const expiredPayload = Buffer.from(JSON.stringify({
+  ...invoice,
+  expiresAt: new Date(now.getTime() - 60_000).toISOString(),
+  invoiceId: expiredInvoiceId,
+}), "utf8").toString("base64url");
 const sql = postgres(connectionString, { max: 1, prepare: false, ssl: "require" });
 
 try {
@@ -52,6 +58,18 @@ try {
   });
   const created = await readJson(createRes, "invoice creation");
 
+  const expiredRes = await fetch(`${baseUrl}/api/invoices`, {
+    body: JSON.stringify({ payload: expiredPayload }),
+    headers: { "content-type": "application/json", cookie },
+    method: "POST",
+  });
+  const expiredBody = await expiredRes.json().catch(() => null);
+  const expiredInvoiceRejected =
+    expiredRes.status === 410 && expiredBody?.error === "Expired invoices cannot be registered.";
+  if (!expiredInvoiceRejected) {
+    throw new Error(`expired invoice check failed with status ${expiredRes.status}`);
+  }
+
   const listRes = await fetch(`${baseUrl}/api/invoices?merchant=${account.address}`, {
     headers: { cookie },
   });
@@ -61,6 +79,7 @@ try {
   const state = await readJson(stateRes, "public invoice state");
 
   console.log(JSON.stringify({
+    expiredInvoiceRejected,
     invoiceCreated: created.saved === true,
     invoiceListed: Array.isArray(listed.invoices) && listed.invoices.some((item) => item?.invoice?.invoiceId === invoiceId),
     publicRegistrationConfirmed: state.registered === true,
@@ -68,6 +87,7 @@ try {
   }));
 } finally {
   await sql`delete from arcpass_receipts where invoice_id = ${invoiceId}`;
+  await sql`delete from arcpass_invoices where invoice_id = ${expiredInvoiceId}`;
   await sql`delete from arcpass_invoices where invoice_id = ${invoiceId}`;
   await sql`delete from arcpass_merchant_challenges where lower(address) = lower(${account.address})`;
   await sql`delete from arcpass_merchant_sessions where lower(address) = lower(${account.address})`;
