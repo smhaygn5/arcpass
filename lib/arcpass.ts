@@ -1,0 +1,336 @@
+import {
+  formatUnits,
+  getAddress,
+  isAddress,
+  keccak256,
+  parseUnits,
+  toBytes,
+  type Address,
+} from "viem";
+import { arcScanAddressUrl, arcScanTxUrl } from "./arc-chain.ts";
+
+export const ARCPASS_VERSION = 1;
+
+export type ArcPassTokenSymbol = "USDC" | "EURC";
+export type PassportStatus = "verified" | "pending" | "unverified";
+export type RefundPolicy = "none" | "merchant-refund" | "escrow-window";
+
+export type MerchantPassport = {
+  businessName: string;
+  createdAt: string;
+  domain: string;
+  passportId: string;
+  refundPolicy: RefundPolicy;
+  status: PassportStatus;
+  walletAddress: Address;
+};
+
+export type ArcPassInvoice = {
+  amount: string;
+  createdAt: string;
+  description: string;
+  expiresAt: string;
+  invoiceId: string;
+  merchant: MerchantPassport;
+  token: ArcPassTokenSymbol;
+  version: typeof ARCPASS_VERSION;
+};
+
+export type TrustSignal = {
+  active: boolean;
+  label: string;
+  points: number;
+};
+
+export const ARCPASS_TOKENS: Record<
+  ArcPassTokenSymbol,
+  {
+    address: Address;
+    decimals: number;
+    label: string;
+  }
+> = {
+  USDC: {
+    address: "0x3600000000000000000000000000000000000000",
+    decimals: 6,
+    label: "USD Coin",
+  },
+  EURC: {
+    address: "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a",
+    decimals: 6,
+    label: "Euro Coin",
+  },
+};
+
+export const EMPTY_MERCHANT_PASSPORT: MerchantPassport = {
+  businessName: "ArcPass Merchant",
+  createdAt: new Date(0).toISOString(),
+  domain: "example.com",
+  passportId: "pass_demo",
+  refundPolicy: "merchant-refund",
+  status: "pending",
+  walletAddress: "0x0000000000000000000000000000000000000000",
+};
+
+export function createMerchantPassport(input: {
+  businessName: string;
+  domain: string;
+  refundPolicy: RefundPolicy;
+  status?: PassportStatus;
+  walletAddress: string;
+}): MerchantPassport {
+  if (!isAddress(input.walletAddress)) {
+    throw new Error("Merchant wallet address is invalid.");
+  }
+
+  const domain = normalizeDomain(input.domain);
+  if (!domain) {
+    throw new Error("Merchant domain is required.");
+  }
+
+  const walletAddress = getAddress(input.walletAddress);
+
+  return {
+    businessName: input.businessName.trim() || "ArcPass Merchant",
+    createdAt: new Date().toISOString(),
+    domain,
+    passportId: createShortId("pass"),
+    refundPolicy: input.refundPolicy,
+    status: input.status ?? "pending",
+    walletAddress,
+  };
+}
+
+export function createInvoice(input: {
+  amount: string;
+  description: string;
+  expiresAt: string;
+  merchant: MerchantPassport;
+  token: ArcPassTokenSymbol;
+}): ArcPassInvoice {
+  assertValidAmount(input.amount, input.token);
+
+  if (!input.description.trim()) {
+    throw new Error("Invoice description is required.");
+  }
+
+  if (Number.isNaN(new Date(input.expiresAt).getTime())) {
+    throw new Error("Invoice expiry date is invalid.");
+  }
+
+  return {
+    amount: normalizeAmount(input.amount),
+    createdAt: new Date().toISOString(),
+    description: input.description.trim(),
+    expiresAt: new Date(input.expiresAt).toISOString(),
+    invoiceId: createShortId("inv"),
+    merchant: input.merchant,
+    token: input.token,
+    version: ARCPASS_VERSION,
+  };
+}
+
+export function encodeInvoicePayload(invoice: ArcPassInvoice) {
+  return base64UrlEncode(JSON.stringify(invoice));
+}
+
+export function decodeInvoicePayload(payload: string): ArcPassInvoice | null {
+  try {
+    const invoice = JSON.parse(base64UrlDecode(payload)) as Partial<ArcPassInvoice>;
+    if (invoice.version !== ARCPASS_VERSION) return null;
+    if (!invoice.invoiceId || typeof invoice.invoiceId !== "string") return null;
+    if (!invoice.description || typeof invoice.description !== "string") return null;
+    if (!invoice.amount || typeof invoice.amount !== "string") return null;
+    if (!invoice.token || !(invoice.token in ARCPASS_TOKENS)) return null;
+    if (!invoice.createdAt || Number.isNaN(new Date(invoice.createdAt).getTime())) return null;
+    if (!invoice.expiresAt || Number.isNaN(new Date(invoice.expiresAt).getTime())) return null;
+    if (!invoice.merchant) return null;
+
+    const merchant = normalizeMerchantPassport(invoice.merchant);
+    if (!merchant) return null;
+    assertValidAmount(invoice.amount, invoice.token);
+
+    return {
+      amount: normalizeAmount(invoice.amount),
+      createdAt: new Date(invoice.createdAt).toISOString(),
+      description: invoice.description.trim(),
+      expiresAt: new Date(invoice.expiresAt).toISOString(),
+      invoiceId: invoice.invoiceId,
+      merchant,
+      token: invoice.token,
+      version: ARCPASS_VERSION,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function invoiceHash(invoice: ArcPassInvoice) {
+  return keccak256(toBytes(stableInvoiceJson(invoice)));
+}
+
+export function merchantPassportHash(passport: MerchantPassport) {
+  return keccak256(toBytes(stableMerchantJson(passport)));
+}
+
+export function invoiceAmountRaw(invoice: ArcPassInvoice) {
+  return parseUnits(invoice.amount, ARCPASS_TOKENS[invoice.token].decimals);
+}
+
+export function formatInvoiceAmount(rawAmount: bigint, token: ArcPassTokenSymbol) {
+  return formatUnits(rawAmount, ARCPASS_TOKENS[token].decimals);
+}
+
+export function invoiceExpired(invoice: ArcPassInvoice, now = new Date()) {
+  return new Date(invoice.expiresAt).getTime() <= now.getTime();
+}
+
+export function trustSignals(passport: MerchantPassport): TrustSignal[] {
+  return [
+    {
+      active: passport.status === "verified",
+      label: "Domain verified",
+      points: 30,
+    },
+    {
+      active: isAddress(passport.walletAddress),
+      label: "Wallet bound",
+      points: 20,
+    },
+    {
+      active: passport.refundPolicy !== "none",
+      label: "Refund policy",
+      points: 20,
+    },
+    {
+      active: Boolean(passport.businessName.trim()),
+      label: "Business profile",
+      points: 15,
+    },
+    {
+      active: Boolean(passport.domain.trim()),
+      label: "Public domain",
+      points: 15,
+    },
+  ];
+}
+
+export function trustScore(passport: MerchantPassport) {
+  return trustSignals(passport).reduce(
+    (score, signal) => score + (signal.active ? signal.points : 0),
+    0,
+  );
+}
+
+export function trustLabel(score: number) {
+  if (score >= 85) return "High trust";
+  if (score >= 60) return "Review ready";
+  return "Needs verification";
+}
+
+export function normalizeDomain(domain: string) {
+  const trimmed = domain.trim().toLowerCase();
+  if (!trimmed) return "";
+
+  try {
+    const url = new URL(trimmed.startsWith("http") ? trimmed : `https://${trimmed}`);
+    return url.hostname.replace(/^www\./, "");
+  } catch {
+    return trimmed.replace(/^https?:\/\//, "").split("/")[0]?.replace(/^www\./, "") ?? "";
+  }
+}
+
+export function paymentReceiptUrl(hash: string) {
+  return arcScanTxUrl(hash);
+}
+
+export function merchantExplorerUrl(passport: MerchantPassport) {
+  return arcScanAddressUrl(passport.walletAddress);
+}
+
+function normalizeMerchantPassport(value: Partial<MerchantPassport>) {
+  if (!value.walletAddress || !isAddress(value.walletAddress)) return null;
+  if (!value.domain || typeof value.domain !== "string") return null;
+  if (!value.businessName || typeof value.businessName !== "string") return null;
+  if (!value.passportId || typeof value.passportId !== "string") return null;
+  if (!value.createdAt || Number.isNaN(new Date(value.createdAt).getTime())) return null;
+
+  const refundPolicy = value.refundPolicy ?? "none";
+  if (!["none", "merchant-refund", "escrow-window"].includes(refundPolicy)) return null;
+
+  const status = value.status ?? "pending";
+  if (!["verified", "pending", "unverified"].includes(status)) return null;
+
+  return {
+    businessName: value.businessName.trim(),
+    createdAt: new Date(value.createdAt).toISOString(),
+    domain: normalizeDomain(value.domain),
+    passportId: value.passportId,
+    refundPolicy,
+    status,
+    walletAddress: getAddress(value.walletAddress),
+  } satisfies MerchantPassport;
+}
+
+function assertValidAmount(amount: string, token: ArcPassTokenSymbol) {
+  const normalized = normalizeAmount(amount);
+  const decimals = ARCPASS_TOKENS[token].decimals;
+  const [, fractional = ""] = normalized.split(".");
+
+  if (!/^\d+(?:\.\d+)?$/.test(normalized) || Number(normalized) <= 0) {
+    throw new Error("Invoice amount must be a positive decimal.");
+  }
+
+  if (fractional.length > decimals) {
+    throw new Error(`${token} supports ${decimals} decimal places on Arc.`);
+  }
+}
+
+function normalizeAmount(amount: string) {
+  return amount.trim().replace(/,/g, ".");
+}
+
+function stableInvoiceJson(invoice: ArcPassInvoice) {
+  return JSON.stringify({
+    amount: normalizeAmount(invoice.amount),
+    description: invoice.description,
+    expiresAt: new Date(invoice.expiresAt).toISOString(),
+    invoiceId: invoice.invoiceId,
+    merchantHash: merchantPassportHash(invoice.merchant),
+    token: invoice.token,
+    version: invoice.version,
+  });
+}
+
+function stableMerchantJson(passport: MerchantPassport) {
+  return JSON.stringify({
+    businessName: passport.businessName,
+    domain: normalizeDomain(passport.domain),
+    passportId: passport.passportId,
+    refundPolicy: passport.refundPolicy,
+    status: passport.status,
+    walletAddress: getAddress(passport.walletAddress),
+  });
+}
+
+function createShortId(prefix: string) {
+  const bytes = new Uint8Array(8);
+  globalThis.crypto.getRandomValues(bytes);
+  const suffix = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${prefix}_${suffix}`;
+}
+
+function base64UrlEncode(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function base64UrlDecode(value: string) {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+  const binary = atob(padded);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
