@@ -6,6 +6,13 @@ export function databaseConfigured() {
   return Boolean(process.env.DATABASE_URL?.trim());
 }
 
+export function requirePersistentDatabase() {
+  if (process.env.NODE_ENV !== "production" || databaseConfigured()) return;
+  throw new Error(
+    "ArcPass requires DATABASE_URL in production. Local JSON storage is available only for local development.",
+  );
+}
+
 export function getDatabase() {
   const connectionString = process.env.DATABASE_URL?.trim();
   if (!connectionString) {

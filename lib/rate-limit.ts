@@ -1,6 +1,9 @@
 import { createHash } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
-import { databaseConfigured, getDatabase } from "./server-database.ts";
+import {
+  databaseConfigured,
+  getDatabase,
+} from "./server-database.ts";
 
 type Bucket = { count: number; resetAt: number };
 type DatabaseBucket = { request_count: number; retry_after: number | string };
@@ -15,6 +18,9 @@ export async function rateLimit(
   limit: number,
   windowMs: number,
 ): Promise<{ ok: boolean; retryAfter: number }> {
+  if (process.env.NODE_ENV === "production" && !databaseConfigured()) {
+    return { ok: false, retryAfter: 0 };
+  }
   if (databaseConfigured()) {
     const sql = getDatabase();
     await pruneExpiredDatabaseBuckets();
@@ -53,6 +59,12 @@ export function clientKey(req: NextRequest): string {
 }
 
 export function tooManyRequests(retryAfter: number): NextResponse {
+  if (retryAfter <= 0) {
+    return NextResponse.json(
+      { error: "ArcPass storage is temporarily unavailable. No payment was accepted." },
+      { status: 503 },
+    );
+  }
   return NextResponse.json(
     { error: "Too many requests. Please slow down and try again shortly." },
     { status: 429, headers: { "retry-after": String(Math.max(1, retryAfter)) } },

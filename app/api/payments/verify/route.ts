@@ -2,13 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   createPublicClient,
   getAddress,
-  http,
   isAddress,
   parseEventLogs,
   type Address,
   type Hash,
 } from "viem";
-import { arcTestnet } from "@/lib/arc-chain";
+import { arcTestnet, arcTestnetTransport } from "@/lib/arc-chain";
 import {
   ARCPASS_TOKENS,
   decodeInvoicePayload,
@@ -43,8 +42,10 @@ const transferEventAbi = [
 
 const publicClient = createPublicClient({
   chain: arcTestnet,
-  transport: http(),
+  transport: arcTestnetTransport(),
 });
+
+const REQUIRED_CONFIRMATIONS = BigInt(2);
 
 type VerifyPaymentBody = {
   payer?: unknown;
@@ -135,6 +136,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error: "Transaction was found, but it did not succeed.",
+          explorerUrl: paymentReceiptUrl(txHash),
+          verified: false,
+        },
+        { status: 409 },
+      );
+    }
+
+    const currentBlock = await publicClient.getBlockNumber();
+    const confirmations = currentBlock - receipt.blockNumber + BigInt(1);
+    if (confirmations < REQUIRED_CONFIRMATIONS) {
+      return NextResponse.json(
+        {
+          error: "Transaction is confirmed but still waiting for one more Arc block before ArcPass issues a receipt.",
           explorerUrl: paymentReceiptUrl(txHash),
           verified: false,
         },

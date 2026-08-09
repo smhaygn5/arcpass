@@ -5,11 +5,14 @@ import {
   createPublicClient,
   createWalletClient,
   custom,
-  http,
   type Address,
   type Hash,
 } from "viem";
-import { arcTestnet, ARC_TESTNET_NETWORK } from "@/lib/arc-chain";
+import {
+  arcTestnet,
+  arcTestnetTransport,
+  ARC_TESTNET_NETWORK,
+} from "@/lib/arc-chain";
 import {
   ARCPASS_TOKENS,
   formatInvoiceAmount,
@@ -56,7 +59,7 @@ const erc20Abi = [
 
 const publicClient = createPublicClient({
   chain: arcTestnet,
-  transport: http(),
+  transport: arcTestnetTransport(),
 });
 const TX_HASH_PATTERN = /^0x[0-9a-fA-F]{64}$/;
 
@@ -224,7 +227,10 @@ export function ArcPaymentPanel({
       setTxHash(hash);
       setManualTxHash(hash);
 
-      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      const receipt = await publicClient.waitForTransactionReceipt({
+        confirmations: 2,
+        hash,
+      });
       if (receipt.status !== "success") {
         throw new Error("The transaction was mined but did not succeed.");
       }

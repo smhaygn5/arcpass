@@ -229,7 +229,7 @@ test("prevents one transaction from being assigned to multiple invoices", async 
     explorerUrl: `https://testnet.arcscan.app/tx/${txHash}`,
     invoiceId: firstInvoice.invoiceId,
     merchant: merchant.walletAddress,
-    payer: "0x3333333333333333333333333333333333333333",
+    payer: "0x3333333333333333333333333333333333333333" as `0x${string}`,
     token: firstInvoice.token,
     txHash,
     verified: true as const,
