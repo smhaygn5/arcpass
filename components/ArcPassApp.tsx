@@ -39,6 +39,7 @@ import {
 } from "@/lib/receipts";
 import { ensurePaymentNetwork, requestWalletAddress, signWalletMessage, walletErrorMessage } from "@/lib/wallet";
 import { escapeCsvCell, shortAddress } from "@/lib/format";
+import { invoiceLifecycle } from "@/lib/invoice-lifecycle";
 
 const WORKSPACE_TABS = [
   { id: "dashboard", label: "Dashboard" },
@@ -598,7 +599,69 @@ function DashboardTab({
           receiptHistory={receiptHistory}
         />
       </div>
+
+      <InvoiceLifecycleTimeline
+        invoiceHistory={invoiceHistory}
+        receiptHistory={receiptHistory}
+      />
     </div>
+  );
+}
+
+function InvoiceLifecycleTimeline({
+  invoiceHistory,
+  receiptHistory,
+}: {
+  invoiceHistory: SavedInvoice[];
+  receiptHistory: SavedReceipt[];
+}) {
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
+  const selected =
+    invoiceHistory.find((item) => item.invoice.invoiceId === selectedInvoiceId) ??
+    invoiceHistory[0] ??
+    null;
+  const events = selected ? invoiceLifecycle(selected, receiptHistory) : [];
+
+  return (
+    <section className="arcpass-panel arcpass-panel-wide arcpass-lifecycle-panel">
+      <div className="arcpass-lifecycle-heading">
+        <div>
+          <p className="arcpass-panel-label">Invoice lifecycle</p>
+          <h3>See exactly where each payment link stands.</h3>
+        </div>
+        {selected ? <span className="arcpass-status-word">{invoiceStatusLabel(invoiceStatus(selected.invoice, receiptHistory))}</span> : null}
+      </div>
+      {invoiceHistory.length ? (
+        <>
+          <div className="arcpass-lifecycle-select" role="list" aria-label="Choose an invoice timeline">
+            {invoiceHistory.slice(0, 8).map((item) => (
+              <button
+                key={item.invoice.invoiceId}
+                type="button"
+                className={item.invoice.invoiceId === selected?.invoice.invoiceId ? "is-selected" : ""}
+                onClick={() => setSelectedInvoiceId(item.invoice.invoiceId)}
+              >
+                {item.invoice.invoiceId} · {item.invoice.amount} {item.invoice.token}
+              </button>
+            ))}
+          </div>
+          <div className="arcpass-lifecycle-events">
+            {events.map((event) => (
+              <div className="arcpass-lifecycle-event" key={`${event.status}-${event.at}`}>
+                <span data-status={event.status} />
+                <div>
+                  <strong>{event.title}</strong>
+                  <p>{event.detail}</p>
+                </div>
+                <time>{new Date(event.at).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}</time>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <p className="arcpass-empty">Create an invoice to start its lifecycle timeline.</p>
+      )}
+    </section>
   );
 }
 

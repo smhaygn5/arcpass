@@ -9,7 +9,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint app components lib scripts eslint.config.mjs next.config.ts postcss.config.mjs",
-    "test": "node --test lib/arcpass.test.ts",
+    "test": "node --test lib/arcpass.test.ts lib/invoice-lifecycle.test.ts",
     "db:migrate": "node --env-file=.env.local scripts/migrate-database.mjs",
     "db:check": "node --env-file=.env.local scripts/check-database.mjs",
     "db:smoke": "node --env-file=.env.local scripts/smoke-supabase.mjs"
