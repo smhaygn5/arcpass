@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Address } from "viem";
 import { ArcPassMark } from "@/components/ArcPassMark";
+import { PaymentLinkQr } from "@/components/PaymentLinkQr";
 import { ARC_TESTNET_NETWORK } from "@/lib/arc-chain";
 import {
   createInvoice,
@@ -1186,6 +1187,8 @@ function InvoiceDetailPanel({
           {item.link}
         </a>
       </div>
+
+      <PaymentLinkQr invoiceId={invoice.invoiceId} paymentLink={item.link} />
 
       <div className="arcpass-invoice-actions">
         <button type="button" onClick={() => void onCopyLink()} className="arcpass-dark-button">

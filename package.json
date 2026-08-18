@@ -9,7 +9,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint app components lib scripts eslint.config.mjs next.config.ts postcss.config.mjs",
-    "test": "node --test lib/arcpass.test.ts lib/invoice-lifecycle.test.ts lib/payment-readiness.test.ts",
+    "test": "node --test lib/arcpass.test.ts lib/invoice-lifecycle.test.ts lib/payment-readiness.test.ts lib/payment-link-kit.test.ts",
     "db:migrate": "node --env-file=.env.local scripts/migrate-database.mjs",
     "db:check": "node --env-file=.env.local scripts/check-database.mjs",
     "db:smoke": "node --env-file=.env.local scripts/smoke-supabase.mjs"
@@ -17,6 +17,7 @@
   "dependencies": {
     "next": "^16.3.0",
     "postgres": "^3.4.9",
+    "qrcode": "^1.5.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "viem": "^2.55.11"
@@ -24,6 +25,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/qrcode": "^1.5.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
