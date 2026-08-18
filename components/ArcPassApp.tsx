@@ -42,6 +42,14 @@ import {
 import { ensurePaymentNetwork, requestWalletAddress, signWalletMessage, walletErrorMessage } from "@/lib/wallet";
 import { escapeCsvCell, shortAddress } from "@/lib/format";
 import { invoiceLifecycle } from "@/lib/invoice-lifecycle";
+import {
+  BUILT_IN_INVOICE_TEMPLATES,
+  expiryInputFromHours,
+  loadInvoiceTemplates,
+  removeInvoiceTemplate,
+  saveInvoiceTemplate,
+  type InvoiceTemplate,
+} from "@/lib/invoice-templates";
 
 const WORKSPACE_TABS = [
   { id: "dashboard", label: "Dashboard" },
@@ -788,10 +796,52 @@ function InvoiceTab({
   setToken: (value: ArcPassTokenSymbol) => void;
   token: ArcPassTokenSymbol;
 }) {
+  const [customTemplates, setCustomTemplates] = useState<InvoiceTemplate[]>(loadInvoiceTemplates);
+  const [templateName, setTemplateName] = useState("");
+
+  function applyTemplate(template: InvoiceTemplate) {
+    setAmount(template.amount);
+    setDescription(template.description);
+    setToken(template.token);
+    setExpiresAt(expiryInputFromHours(template.expiresInHours));
+  }
+
+  function saveCurrentTemplate() {
+    try {
+      const next = saveInvoiceTemplate({
+        amount,
+        description,
+        expiresInHours: Math.max(1, Math.min(720, Math.round((new Date(expiresAt).getTime() - Date.now()) / 3_600_000) || 24)),
+        label: templateName.trim() || "Saved invoice template",
+        token,
+      });
+      setCustomTemplates(next);
+      setTemplateName("");
+    } catch {
+      // The form still keeps the current invoice values if local storage is unavailable.
+    }
+  }
+
   return (
     <div className="arcpass-panel">
       <p className="arcpass-panel-label">Invoice builder</p>
       <h3>Create a locked, buyer-readable checkout link.</h3>
+      <section className="arcpass-template-kit" aria-label="Invoice templates">
+        <div>
+          <strong>Start from a template</strong>
+          <p>Apply common invoice settings, then edit anything before creating the payment link.</p>
+        </div>
+        <div className="arcpass-template-list">
+          {[...BUILT_IN_INVOICE_TEMPLATES, ...customTemplates].map((template) => (
+            <div className="arcpass-template-item" key={template.id}>
+              <button type="button" onClick={() => applyTemplate(template)}>
+                <strong>{template.label}</strong><span>{template.amount} {template.token} · {template.expiresInHours}h</span>
+              </button>
+              {!template.isBuiltIn ? <button type="button" className="arcpass-template-remove" onClick={() => setCustomTemplates(removeInvoiceTemplate(template.id))} aria-label={`Remove ${template.label}`}>×</button> : null}
+            </div>
+          ))}
+        </div>
+      </section>
       <div className="arcpass-form-grid arcpass-form-grid-four">
         <Field label="Description">
           <input value={description} onChange={(event) => setDescription(event.target.value)} className={INPUT_CLASS} />
@@ -808,6 +858,10 @@ function InvoiceTab({
         <Field label="Expires at">
           <input value={expiresAt} type="datetime-local" onChange={(event) => setExpiresAt(event.target.value)} className={INPUT_CLASS} />
         </Field>
+      </div>
+      <div className="arcpass-template-save">
+        <input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Template name (optional)" className={INPUT_CLASS} />
+        <button type="button" onClick={saveCurrentTemplate} className="arcpass-ghost-button">Save current as template</button>
       </div>
       <button type="button" onClick={() => void createPaymentLink()} className="arcpass-dark-button arcpass-inline-action">
         Generate verified payment link
