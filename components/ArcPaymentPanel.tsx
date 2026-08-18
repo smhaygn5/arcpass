@@ -36,6 +36,7 @@ import {
 } from "@/lib/wallet";
 import { ArcPassMark } from "@/components/ArcPassMark";
 import { shortAddress } from "@/lib/format";
+import { paymentCanProceed, paymentReadinessChecks } from "@/lib/payment-readiness";
 
 const erc20Abi = [
   {
@@ -95,12 +96,23 @@ export function ArcPaymentPanel({
   const [publicStateError, setPublicStateError] = useState<string | null>(null);
   const [isLoadingPublicState, setIsLoadingPublicState] = useState(true);
   const [isRegistered, setIsRegistered] = useState<boolean | null>(null);
+  const [networkReady, setNetworkReady] = useState(false);
   const amountRaw = useMemo(() => invoiceAmountRaw(invoice), [invoice]);
   const merchantAddress = invoice.merchant.walletAddress;
   const token = ARCPASS_TOKENS[invoice.token];
   const score = trustScore(invoice.merchant);
   const expired = invoiceExpired(invoice);
   const hasEnoughBalance = balance == null ? null : balance >= amountRaw;
+  const readinessChecks = paymentReadinessChecks({
+    balanceReady: hasEnoughBalance,
+    expired,
+    hasReceipt: Boolean(publicReceipt),
+    invoiceRegistered: isRegistered,
+    networkReady,
+    payerMatchesMerchant: Boolean(payer && payer.toLowerCase() === merchantAddress.toLowerCase()),
+    payerSelected: Boolean(payer),
+  });
+  const paymentReady = paymentCanProceed(readinessChecks);
 
   useEffect(() => {
     async function loadPublicInvoiceState() {
@@ -147,6 +159,7 @@ export function ArcPaymentPanel({
       setBalance(null);
       setError(null);
       setPayer(null);
+      setNetworkReady(false);
       setReceiptError(null);
       setStatus("idle");
     });
@@ -158,6 +171,7 @@ export function ArcPaymentPanel({
 
     try {
       await ensurePaymentNetwork(ARC_TESTNET_NETWORK);
+      setNetworkReady(true);
       const address = await requestVerifiedWalletAddressSelection();
       setPayer(address);
       setStatus("ready");
@@ -204,6 +218,7 @@ export function ArcPaymentPanel({
 
     try {
       await ensurePaymentNetwork(ARC_TESTNET_NETWORK);
+      setNetworkReady(true);
       const address = await requestVerifiedWalletAddressSelection();
       setPayer(address);
 
@@ -342,7 +357,7 @@ export function ArcPaymentPanel({
                 <button
                   type="button"
                   onClick={payInvoice}
-                  disabled={isRegistered !== true || expired || Boolean(publicReceipt) || status === "paying" || status === "verifying" || status === "paid"}
+                  disabled={!paymentReady || Boolean(publicReceipt) || status === "paying" || status === "verifying" || status === "paid"}
                   className="arcpass-dark-button"
                 >
                   {status === "paying"
@@ -439,6 +454,24 @@ export function ArcPaymentPanel({
             ) : null}
           </aside>
         </div>
+
+        <section className="arcpass-panel arcpass-readiness-panel">
+          <div className="arcpass-readiness-heading">
+            <div>
+              <p className="arcpass-panel-label">Payment readiness check</p>
+              <h3>{paymentReady ? "Ready to request payment." : "Complete the checks before paying."}</h3>
+            </div>
+            <span data-ready={paymentReady}>{paymentReady ? "Ready" : "Not ready"}</span>
+          </div>
+          <div className="arcpass-readiness-list">
+            {readinessChecks.map((check) => (
+              <div key={check.label} className="arcpass-readiness-item">
+                <span data-state={check.state}>{check.state === "ready" ? "✓" : check.state === "blocked" ? "!" : "·"}</span>
+                <div><strong>{check.label}</strong><p>{check.detail}</p></div>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <div className="arcpass-panel">
           <p className="arcpass-panel-label">Payment state</p>
