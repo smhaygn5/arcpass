@@ -23,6 +23,7 @@ import {
   invoiceStatusLabel,
   isSavedInvoice,
   loadSavedInvoices,
+  merchantPassportLink,
   mergeSavedInvoices,
   saveInvoiceLocally,
   type SavedInvoice,
@@ -1192,6 +1193,9 @@ function InvoiceDetailPanel({
         </button>
         <a href={item.link} target="_blank" rel="noreferrer" className="arcpass-ghost-button">
           Open checkout
+        </a>
+        <a href={merchantPassportLink(item)} target="_blank" rel="noreferrer" className="arcpass-ghost-button">
+          Open passport
         </a>
         {matchedReceipt ? (
           <a href={matchedReceipt.explorerUrl} target="_blank" rel="noreferrer" className="arcpass-ghost-button">

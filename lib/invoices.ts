@@ -31,6 +31,16 @@ export function createSavedInvoice({
   };
 }
 
+export function merchantPassportLink(invoice: SavedInvoice) {
+  try {
+    const url = new URL(invoice.link);
+    url.pathname = `/passport/${invoice.payload}`;
+    return url.toString();
+  } catch {
+    return `/passport/${invoice.payload}`;
+  }
+}
+
 export function invoiceStatus(invoice: ArcPassInvoice, receipts: SavedReceipt[]): InvoiceStatus {
   if (receipts.some((receipt) => receipt.invoiceId === invoice.invoiceId)) return "verified";
   if (invoiceExpired(invoice)) return "expired";

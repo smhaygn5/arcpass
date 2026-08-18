@@ -16,7 +16,7 @@ import {
   normalizeDomain,
   trustScore,
 } from "./arcpass.ts";
-import { createSavedInvoice, invoiceStatus, mergeSavedInvoices } from "./invoices.ts";
+import { createSavedInvoice, invoiceStatus, merchantPassportLink, mergeSavedInvoices } from "./invoices.ts";
 import { extractInvoicePayload, mergeSavedReceipts, type SavedReceipt } from "./receipts.ts";
 import { escapeCsvCell } from "./format.ts";
 
@@ -45,6 +45,13 @@ test("creates and decodes a verified invoice payload", () => {
   assert.equal(decoded?.merchant.domain, "northstar.example");
   assert.equal(invoiceAmountRaw(invoice), 12_500_000n);
   assert.match(invoiceHash(invoice), /^0x[0-9a-f]{64}$/);
+});
+
+test("creates a shareable merchant passport link from an invoice", () => {
+  const merchant = createMerchantPassport({ businessName: "Arc Merchant", domain: "merchant.example", refundPolicy: "merchant-refund", status: "verified", walletAddress });
+  const invoice = createInvoice({ amount: "2", description: "Passport test", expiresAt: new Date(Date.now() + 60_000).toISOString(), merchant, token: "USDC" });
+  const saved = createSavedInvoice({ invoice, origin: "https://arcpass.example" });
+  assert.match(merchantPassportLink(saved), /^https:\/\/arcpass\.example\/passport\//);
 });
 
 test("scores merchant passport trust signals", () => {
