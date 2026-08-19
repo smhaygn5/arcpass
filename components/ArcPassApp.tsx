@@ -50,6 +50,7 @@ import {
   saveInvoiceTemplate,
   type InvoiceTemplate,
 } from "@/lib/invoice-templates";
+import { formatRevenueAmount, merchantRevenueInsights } from "@/lib/revenue-insights";
 
 const WORKSPACE_TABS = [
   { id: "dashboard", label: "Dashboard" },
@@ -614,7 +615,43 @@ function DashboardTab({
         invoiceHistory={invoiceHistory}
         receiptHistory={receiptHistory}
       />
+
+      <MerchantRevenueInsights receiptHistory={receiptHistory} />
     </div>
+  );
+}
+
+function MerchantRevenueInsights({ receiptHistory }: { receiptHistory: SavedReceipt[] }) {
+  const insights = useMemo(() => merchantRevenueInsights(receiptHistory), [receiptHistory]);
+
+  return (
+    <section className="arcpass-panel arcpass-panel-wide arcpass-revenue-panel">
+      <div className="arcpass-revenue-heading">
+        <div>
+          <p className="arcpass-panel-label">Revenue insights</p>
+          <h3>Verified settlement activity over the last {insights.periodDays} days.</h3>
+        </div>
+        <span>{insights.totalPayments} payments · {insights.uniquePayers} payers</span>
+      </div>
+      {insights.totalPayments ? (
+        <div className="arcpass-revenue-grid">
+          {insights.tokens.map((item) => {
+            const peak = Math.max(...item.dailyTotals, 1);
+            const changeLabel = item.changePercent === null ? "New activity" : `${item.changePercent >= 0 ? "+" : ""}${item.changePercent.toFixed(0)}% vs prior week`;
+            return (
+              <article className="arcpass-revenue-token" key={item.token}>
+                <div className="arcpass-revenue-token-head"><span>{item.token}</span><em data-positive={item.changePercent === null || item.changePercent >= 0}>{changeLabel}</em></div>
+                <strong>{formatRevenueAmount(item.total)} {item.token}</strong>
+                <p>{item.paymentCount} verified payments · Avg {formatRevenueAmount(item.average)} {item.token}</p>
+                <div className="arcpass-revenue-chart" role="img" aria-label={`${item.token} settlement trend for the last ${insights.periodDays} days`}>
+                  {item.dailyTotals.map((value, index) => <span key={index} style={{ height: `${Math.max(8, (value / peak) * 100)}%` }} title={`${formatRevenueAmount(value)} ${item.token}`} />)}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : <p className="arcpass-empty">Verified payments will appear here as separate USDC and EURC settlement trends.</p>}
+    </section>
   );
 }
 
