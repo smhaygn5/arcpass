@@ -27,22 +27,23 @@ export async function GET(req: NextRequest) {
 
   const receipts = await loadServerReceipts({ merchant, limit: 100 });
   const matchedReceipt = receipts.find((receipt) => receipt.invoiceId === invoice.invoiceId);
+  const trustedReceipt = registeredInvoice ? matchedReceipt : null;
 
   return NextResponse.json({
     invoiceId: invoice.invoiceId,
-    paid: Boolean(matchedReceipt),
+    paid: Boolean(trustedReceipt),
     registered: Boolean(registeredInvoice),
-    receipt: matchedReceipt
+    receipt: trustedReceipt
       ? {
-          amount: matchedReceipt.amount,
-          blockNumber: matchedReceipt.blockNumber,
-          explorerUrl: matchedReceipt.explorerUrl,
-          invoiceId: matchedReceipt.invoiceId,
-          merchant: matchedReceipt.merchant,
-          paidAt: matchedReceipt.paidAt,
-          payer: matchedReceipt.payer,
-          token: matchedReceipt.token,
-          txHash: matchedReceipt.txHash,
+          amount: trustedReceipt.amount,
+          blockNumber: trustedReceipt.blockNumber,
+          explorerUrl: trustedReceipt.explorerUrl,
+          invoiceId: trustedReceipt.invoiceId,
+          merchant: trustedReceipt.merchant,
+          paidAt: trustedReceipt.paidAt,
+          payer: trustedReceipt.payer,
+          token: trustedReceipt.token,
+          txHash: trustedReceipt.txHash,
           verified: true,
         }
       : null,

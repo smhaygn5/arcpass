@@ -37,6 +37,7 @@ import {
 import { ArcPassMark } from "@/components/ArcPassMark";
 import { shortAddress } from "@/lib/format";
 import { paymentCanProceed, paymentReadinessChecks } from "@/lib/payment-readiness";
+import { publicPaymentReceiptLink } from "@/lib/payment-receipt";
 
 const erc20Abi = [
   {
@@ -540,6 +541,7 @@ export function ArcPaymentPanel({
                 <Detail label="Merchant" value={shortAddress(verifiedReceipt.merchant)} />
                 <Detail label="Block" value={verifiedReceipt.blockNumber} />
               </div>
+              <a href={publicPaymentReceiptLink(payload)} className="arcpass-ghost-button">Open payment receipt</a>
             </div>
           ) : null}
 
