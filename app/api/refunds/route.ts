@@ -1,0 +1,66 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getAddress, isAddress, verifyMessage, type Hex } from "viem";
+import { decodeInvoicePayload } from "@/lib/arcpass";
+import { clientKey, rateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { extractInvoicePayload } from "@/lib/receipts";
+import { normalizeRefundReason, refundRequestMessage } from "@/lib/refunds";
+import { requireMerchantSession } from "@/lib/server-merchant-session";
+import { findServerReceiptByTxHash } from "@/lib/server-receipts";
+import { createServerRefundRequest, findServerRefundRequest, loadServerRefundRequests, updateServerRefundRequest } from "@/lib/server-refunds";
+
+export const runtime = "nodejs";
+const TX_HASH = /^0x[0-9a-fA-F]{64}$/;
+
+export async function GET(req: NextRequest) {
+  const limit = await rateLimit(`refunds-read:${clientKey(req)}`, 60, 60_000);
+  if (!limit.ok) return tooManyRequests(limit.retryAfter);
+  const txHash = req.nextUrl.searchParams.get("txHash") ?? "";
+  if (txHash) {
+    if (!TX_HASH.test(txHash)) return NextResponse.json({ error: "Transaction hash is invalid." }, { status: 400 });
+    const request = await findServerRefundRequest(txHash);
+    return NextResponse.json({ refund: request ? { createdAt: request.createdAt, status: request.status, updatedAt: request.updatedAt } : null });
+  }
+  const merchant = req.nextUrl.searchParams.get("merchant") ?? "";
+  if (!isAddress(merchant)) return NextResponse.json({ error: "Merchant wallet address is invalid." }, { status: 400 });
+  const session = await requireMerchantSession(req, merchant);
+  if (!session.ok) return NextResponse.json({ error: session.error }, { status: session.status });
+  return NextResponse.json({ refunds: await loadServerRefundRequests(getAddress(merchant)) });
+}
+
+export async function POST(req: NextRequest) {
+  const limit = await rateLimit(`refunds-create:${clientKey(req)}`, 10, 60_000);
+  if (!limit.ok) return tooManyRequests(limit.retryAfter);
+  const body = (await req.json().catch(() => null)) as { reason?: unknown; signature?: unknown; txHash?: unknown } | null;
+  const txHash = typeof body?.txHash === "string" ? body.txHash : "";
+  const signature = typeof body?.signature === "string" ? body.signature : "";
+  if (!TX_HASH.test(txHash) || !/^0x[0-9a-fA-F]+$/.test(signature)) return NextResponse.json({ error: "Refund signature or transaction hash is invalid." }, { status: 400 });
+  try {
+    const reason = normalizeRefundReason(typeof body?.reason === "string" ? body.reason : "");
+    const receipt = await findServerReceiptByTxHash(txHash);
+    if (!receipt) return NextResponse.json({ error: "A verified ArcPass receipt is required." }, { status: 404 });
+    const invoice = decodeInvoicePayload(extractInvoicePayload(receipt.link));
+    if (!invoice || invoice.invoiceId !== receipt.invoiceId) return NextResponse.json({ error: "The registered invoice could not be verified." }, { status: 409 });
+    if (invoice.merchant.refundPolicy === "none") return NextResponse.json({ error: "This merchant passport does not offer a refund request policy." }, { status: 409 });
+    const message = refundRequestMessage({ invoiceId: receipt.invoiceId, payer: receipt.payer, reason, txHash: receipt.txHash });
+    const verified = await verifyMessage({ address: receipt.payer, message, signature: signature as Hex });
+    if (!verified) return NextResponse.json({ error: "Refund request must be signed by the payer wallet." }, { status: 401 });
+    return NextResponse.json({ refund: await createServerRefundRequest(receipt, reason) });
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Refund request could not be created." }, { status: 400 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  const limit = await rateLimit(`refunds-update:${clientKey(req)}`, 30, 60_000);
+  if (!limit.ok) return tooManyRequests(limit.retryAfter);
+  const body = (await req.json().catch(() => null)) as { merchant?: unknown; requestId?: unknown; status?: unknown } | null;
+  const merchant = typeof body?.merchant === "string" ? body.merchant : "";
+  const requestId = typeof body?.requestId === "string" ? body.requestId : "";
+  const status = body?.status === "approved" || body?.status === "declined" ? body.status : null;
+  if (!isAddress(merchant) || !/^ref_[a-z0-9]{16}$/.test(requestId) || !status) return NextResponse.json({ error: "Refund decision is invalid." }, { status: 400 });
+  const session = await requireMerchantSession(req, merchant);
+  if (!session.ok) return NextResponse.json({ error: session.error }, { status: session.status });
+  const refund = await updateServerRefundRequest({ merchant: getAddress(merchant), requestId, status });
+  if (!refund) return NextResponse.json({ error: "Refund request was not found." }, { status: 404 });
+  return NextResponse.json({ refund });
+}

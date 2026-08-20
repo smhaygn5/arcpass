@@ -51,6 +51,7 @@ import {
   type InvoiceTemplate,
 } from "@/lib/invoice-templates";
 import { formatRevenueAmount, merchantRevenueInsights } from "@/lib/revenue-insights";
+import { isRefundRequest, type RefundRequest, type RefundRequestStatus } from "@/lib/refunds";
 
 const WORKSPACE_TABS = [
   { id: "dashboard", label: "Dashboard" },
@@ -1236,7 +1237,69 @@ function ReceiptsTab({
           receiptHistory={receiptHistory}
         />
       </div>
+
+      <RefundRequestsPanel walletAddress={walletAddress} />
     </div>
+  );
+}
+
+function RefundRequestsPanel({ walletAddress }: { walletAddress: Address | null }) {
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [requests, setRequests] = useState<RefundRequest[]>([]);
+
+  const loadRequests = useCallback(async () => {
+    if (!walletAddress) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/refunds?merchant=${encodeURIComponent(walletAddress)}`, { cache: "no-store" });
+      const body = (await res.json().catch(() => null)) as { error?: string; refunds?: unknown[] } | null;
+      if (!res.ok) throw new Error(body?.error || "Refund requests could not be loaded.");
+      setRequests((body?.refunds ?? []).filter(isRefundRequest));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Refund requests could not be loaded.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [walletAddress]);
+
+  useEffect(() => {
+    if (!walletAddress) return;
+    let cancelled = false;
+    void fetch(`/api/refunds?merchant=${encodeURIComponent(walletAddress)}`, { cache: "no-store" })
+      .then(async (res) => {
+        const body = (await res.json().catch(() => null)) as { error?: string; refunds?: unknown[] } | null;
+        if (!res.ok) throw new Error(body?.error || "Refund requests could not be loaded.");
+        if (!cancelled) setRequests((body?.refunds ?? []).filter(isRefundRequest));
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Refund requests could not be loaded.");
+      });
+    return () => { cancelled = true; };
+  }, [walletAddress]);
+
+  async function decide(requestId: string, status: Exclude<RefundRequestStatus, "pending">) {
+    if (!walletAddress) return;
+    setError(null);
+    try {
+      const res = await fetch("/api/refunds", { body: JSON.stringify({ merchant: walletAddress, requestId, status }), headers: { "content-type": "application/json" }, method: "PATCH" });
+      const body = (await res.json().catch(() => null)) as { error?: string; refund?: unknown } | null;
+      if (!res.ok || !isRefundRequest(body?.refund)) throw new Error(body?.error || "Refund decision could not be saved.");
+      setRequests((current) => current.map((item) => item.requestId === requestId ? body.refund as RefundRequest : item));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Refund decision could not be saved.");
+    }
+  }
+
+  return (
+    <section className="arcpass-panel arcpass-refund-merchant-panel">
+      <div className="arcpass-refund-panel-heading"><div><p className="arcpass-panel-label">Refund workflow</p><h3>Review payer-signed refund requests.</h3></div><button type="button" className="arcpass-ghost-button" onClick={loadRequests} disabled={!walletAddress || isLoading}>{isLoading ? "Refreshing" : "Refresh"}</button></div>
+      {!walletAddress ? <p className="arcpass-empty">Connect the merchant wallet to review refund requests.</p> : requests.length === 0 ? <p className="arcpass-empty">No refund requests yet.</p> : (
+        <div className="arcpass-refund-list">{requests.map((request) => <article key={request.requestId}><div className="arcpass-refund-item-head"><div><strong>{request.amount} {request.token}</strong><span>{request.invoiceId} · {shortAddress(request.payer)}</span></div><i data-status={request.status}>{request.status}</i></div><p>{request.reason}</p><small>Requested {new Date(request.createdAt).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}</small>{request.status === "pending" ? <div className="arcpass-refund-decision"><button type="button" onClick={() => decide(request.requestId, "declined")}>Decline</button><button type="button" onClick={() => decide(request.requestId, "approved")}>Approve</button></div> : <p className="arcpass-muted">Decision recorded. Token settlement remains a separate merchant action.</p>}</article>)}</div>
+      )}
+      {error ? <p className="arcpass-error" role="alert">{error}</p> : null}
+    </section>
   );
 }
 

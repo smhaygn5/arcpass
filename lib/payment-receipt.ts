@@ -1,4 +1,4 @@
-import { isAddress } from "viem";
+import { isAddress, type Address, type Hash } from "viem";
 import type { ArcPassInvoice } from "./arcpass.ts";
 
 export type PublicPaymentReceipt = {
@@ -6,11 +6,11 @@ export type PublicPaymentReceipt = {
   blockNumber: string;
   explorerUrl: string;
   invoiceId: string;
-  merchant: string;
+  merchant: Address;
   paidAt: string;
-  payer: string;
+  payer: Address;
   token: string;
-  txHash: string;
+  txHash: Hash;
   verified: true;
 };
 
