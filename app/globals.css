@@ -744,6 +744,16 @@ button:disabled {
 .arcpass-collection-list i[data-kind="due-today"] { background: #fff0d5; color: #a66509; }
 .arcpass-collection-list i[data-kind="due-soon"] { background: #e9f0ff; color: #1b5ed3; }
 .arcpass-collection-list i[data-kind="follow-up"] { background: #eceaf9; color: #6255ad; }
+.arcpass-bulk-builder { border-top: 1px solid #e3e7ee; display: grid; gap: 14px; margin-top: 24px; padding-top: 22px; }
+.arcpass-bulk-builder h3 { font-size: 1.15rem; margin: 5px 0; }
+.arcpass-bulk-builder > div:first-child > p:last-child { color: #69758a; font-size: 0.78rem; margin: 0; }
+.arcpass-bulk-builder textarea { background: #f8f9fc; border: 1px solid #dce2ec; border-radius: 10px; color: #111318; font: 0.82rem/1.6 var(--font-mono); min-height: 132px; outline: none; padding: 13px; resize: vertical; width: 100%; }
+.arcpass-bulk-builder textarea:focus { border-color: #1b66ff; background: #fff; }
+.arcpass-bulk-preview { background: #f5f8fd; border: 1px solid #e0e7f2; border-radius: 10px; display: grid; gap: 7px; padding: 12px; }
+.arcpass-bulk-preview strong { color: #192235; font-size: 0.8rem; }
+.arcpass-bulk-preview p, .arcpass-bulk-preview ul { color: #637087; font-size: 0.75rem; margin: 0; }
+.arcpass-bulk-preview ul { color: #b43c4a; display: grid; gap: 4px; padding-left: 18px; }
+.arcpass-bulk-builder > .arcpass-dark-button { justify-self: start; }
 
 .arcpass-readiness-panel { display: grid; gap: 18px; }
 .arcpass-readiness-heading { align-items: start; display: flex; gap: 16px; justify-content: space-between; }

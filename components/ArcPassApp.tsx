@@ -53,6 +53,7 @@ import {
 import { formatRevenueAmount, merchantRevenueInsights } from "@/lib/revenue-insights";
 import { isRefundRequest, type RefundRequest, type RefundRequestStatus } from "@/lib/refunds";
 import { collectionReminders, type CollectionReminder } from "@/lib/collection-reminders";
+import { parseBulkInvoiceDrafts, type BulkInvoiceDraft } from "@/lib/bulk-invoices";
 
 const WORKSPACE_TABS = [
   { id: "dashboard", label: "Dashboard" },
@@ -352,6 +353,33 @@ export function ArcPassApp() {
     }
   }
 
+  async function createBulkPaymentLinks(drafts: BulkInvoiceDraft[]) {
+    setError(null);
+    setServerInvoiceError(null);
+    try {
+      if (!walletAddress) throw new Error("Connect a merchant wallet before creating invoices.");
+      const merchant = createMerchantPassport({ businessName, domain, refundPolicy, status: passportStatus, walletAddress });
+      const batch = drafts.map((draft) => {
+        const invoice = createInvoice({ amount: draft.amount, description: draft.description, expiresAt: new Date(Date.now() + draft.expiryHours * 3_600_000).toISOString(), merchant, token: draft.token });
+        return createSavedInvoice({ invoice, origin: window.location.origin });
+      });
+      const res = await fetch("/api/invoices", { body: JSON.stringify({ payloads: batch.map((item) => item.payload) }), headers: { "content-type": "application/json" }, method: "POST" });
+      const body = (await res.json().catch(() => null)) as { error?: string; invoices?: unknown[]; saved?: boolean } | null;
+      const serverInvoices = (body?.invoices ?? []).filter(isSavedInvoice);
+      if (!res.ok || body?.saved !== true || serverInvoices.length !== batch.length) throw new Error(body?.error || "The invoice batch could not be registered.");
+      for (const item of serverInvoices) saveInvoiceLocally(item);
+      setInvoiceHistory((current) => mergeSavedInvoices([serverInvoices, loadSavedInvoices(), current]));
+      setCreatedLink(serverInvoices[0].link);
+      setCreatedInvoiceId(serverInvoices[0].invoice.invoiceId);
+      setActiveTab("payments");
+      return serverInvoices.length;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "The invoice batch could not be created.";
+      setError(message);
+      throw new Error(message);
+    }
+  }
+
   async function copyLink() {
     if (!createdLink) return;
     await window.navigator.clipboard.writeText(createdLink);
@@ -492,6 +520,7 @@ export function ArcPassApp() {
         {activeTab === "invoice" ? (
           <InvoiceTab
             amount={amount}
+            createBulkPaymentLinks={createBulkPaymentLinks}
             createPaymentLink={createPaymentLink}
             description={description}
             expiresAt={expiresAt}
@@ -816,6 +845,7 @@ function VerifyTab({
 
 function InvoiceTab({
   amount,
+  createBulkPaymentLinks,
   createPaymentLink,
   description,
   expiresAt,
@@ -826,6 +856,7 @@ function InvoiceTab({
   token,
 }: {
   amount: string;
+  createBulkPaymentLinks: (drafts: BulkInvoiceDraft[]) => Promise<number>;
   createPaymentLink: () => Promise<void>;
   description: string;
   expiresAt: string;
@@ -837,6 +868,11 @@ function InvoiceTab({
 }) {
   const [customTemplates, setCustomTemplates] = useState<InvoiceTemplate[]>(loadInvoiceTemplates);
   const [templateName, setTemplateName] = useState("");
+  const [bulkInput, setBulkInput] = useState("");
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const [bulkSuccess, setBulkSuccess] = useState<string | null>(null);
+  const [isCreatingBulk, setIsCreatingBulk] = useState(false);
+  const bulkPreview = useMemo(() => parseBulkInvoiceDrafts(bulkInput), [bulkInput]);
 
   function applyTemplate(template: InvoiceTemplate) {
     setAmount(template.amount);
@@ -858,6 +894,23 @@ function InvoiceTab({
       setTemplateName("");
     } catch {
       // The form still keeps the current invoice values if local storage is unavailable.
+    }
+  }
+
+  async function createBatch() {
+    setBulkError(null);
+    setBulkSuccess(null);
+    if (!bulkInput.trim()) { setBulkError("Add at least one invoice row."); return; }
+    if (bulkPreview.errors.length || bulkPreview.drafts.length === 0) { setBulkError("Fix every row before creating the batch."); return; }
+    setIsCreatingBulk(true);
+    try {
+      const count = await createBulkPaymentLinks(bulkPreview.drafts);
+      setBulkSuccess(`${count} verified payment links created.`);
+      setBulkInput("");
+    } catch (err) {
+      setBulkError(err instanceof Error ? err.message : "The invoice batch could not be created.");
+    } finally {
+      setIsCreatingBulk(false);
     }
   }
 
@@ -905,6 +958,14 @@ function InvoiceTab({
       <button type="button" onClick={() => void createPaymentLink()} className="arcpass-dark-button arcpass-inline-action">
         Generate verified payment link
       </button>
+      <section className="arcpass-bulk-builder">
+        <div><p className="arcpass-panel-label">Bulk invoice creator</p><h3>Create up to 10 verified links at once.</h3><p>Enter one invoice per line using: Description | Amount | Token | Expiry hours</p></div>
+        <textarea value={bulkInput} onChange={(event) => { setBulkInput(event.target.value); setBulkError(null); setBulkSuccess(null); }} placeholder={"Design delivery | 250 | USDC | 72\nMonthly support | 99 | EURC | 168"} rows={5} />
+        {bulkInput.trim() ? <div className="arcpass-bulk-preview"><strong>{bulkPreview.drafts.length} valid rows</strong>{bulkPreview.errors.length ? <ul>{bulkPreview.errors.map((item) => <li key={item}>{item}</li>)}</ul> : <p>All rows are ready for server registration.</p>}</div> : null}
+        <button type="button" className="arcpass-dark-button" onClick={() => void createBatch()} disabled={isCreatingBulk || bulkPreview.errors.length > 0}>{isCreatingBulk ? "Creating batch" : `Create ${bulkPreview.drafts.length || "batch"} payment links`}</button>
+        {bulkError ? <p className="arcpass-error" role="alert">{bulkError}</p> : null}
+        {bulkSuccess ? <p className="arcpass-success">{bulkSuccess}</p> : null}
+      </section>
     </div>
   );
 }
