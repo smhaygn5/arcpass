@@ -52,6 +52,7 @@ import {
 } from "@/lib/invoice-templates";
 import { formatRevenueAmount, merchantRevenueInsights } from "@/lib/revenue-insights";
 import { isRefundRequest, type RefundRequest, type RefundRequestStatus } from "@/lib/refunds";
+import { collectionReminders, type CollectionReminder } from "@/lib/collection-reminders";
 
 const WORKSPACE_TABS = [
   { id: "dashboard", label: "Dashboard" },
@@ -934,6 +935,7 @@ function PaymentsTab({
   const [invoiceFilter, setInvoiceFilter] = useState<InvoiceFilter>("all");
   const [invoiceQuery, setInvoiceQuery] = useState("");
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
+  const [sharedReminderId, setSharedReminderId] = useState<string | null>(null);
   const invoiceOperations = useMemo(
     () => summarizeInvoiceOperations(invoiceHistory, receiptHistory),
     [invoiceHistory, receiptHistory],
@@ -947,10 +949,21 @@ function PaymentsTab({
     filteredInvoices.find((item) => item.invoice.invoiceId === activeInvoiceId) ??
     filteredInvoices[0] ??
     null;
+  const reminders = useMemo(() => collectionReminders(invoiceHistory, receiptHistory), [invoiceHistory, receiptHistory]);
 
   async function copySelectedInvoiceLink() {
     if (!selectedInvoice) return;
     await window.navigator.clipboard.writeText(selectedInvoice.link);
+  }
+
+  async function shareReminder(reminder: CollectionReminder) {
+    try {
+      if (navigator.share) await navigator.share({ text: reminder.message, title: `ArcPass reminder · ${reminder.invoice.invoice.invoiceId}` });
+      else await navigator.clipboard.writeText(reminder.message);
+      setSharedReminderId(reminder.invoice.invoice.invoiceId);
+    } catch {
+      setSharedReminderId(null);
+    }
   }
 
   return (
@@ -1043,6 +1056,12 @@ function PaymentsTab({
         onCopyLink={copySelectedInvoiceLink}
         receiptHistory={receiptHistory}
       />
+
+      <section className="arcpass-panel arcpass-collection-panel">
+        <div className="arcpass-collection-heading"><div><p className="arcpass-panel-label">Expiry & collection reminders</p><h3>Follow up before payment links go cold.</h3></div><span>{reminders.length} actions</span></div>
+        {reminders.length ? <div className="arcpass-collection-list">{reminders.slice(0, 8).map((reminder) => <article key={reminder.invoice.invoice.invoiceId}><div><i data-kind={reminder.kind}>{reminder.label}</i><strong>{reminder.invoice.invoice.description}</strong><span>{reminder.invoice.invoice.amount} {reminder.invoice.invoice.token} · expires {new Date(reminder.invoice.invoice.expiresAt).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}</span></div><button type="button" onClick={() => void shareReminder(reminder)} className="arcpass-ghost-button">{sharedReminderId === reminder.invoice.invoice.invoiceId ? "Message ready" : reminder.kind === "expired" ? "Share expiry notice" : "Share reminder"}</button></article>)}</div> : <p className="arcpass-empty">No collection reminders need attention right now.</p>}
+        <p className="arcpass-muted">ArcPass prepares the message; you choose the recipient and channel. Expired links are never presented as payable.</p>
+      </section>
 
       <aside className="arcpass-panel">
         <p className="arcpass-panel-label">Payment rail</p>
