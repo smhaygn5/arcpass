@@ -29,6 +29,7 @@ import {
 import { saveVerifiedReceipt } from "@/lib/receipts";
 import {
   ensurePaymentNetwork,
+  getConnectedWalletAddress,
   getBrowserWalletProvider,
   requestVerifiedWalletAddressSelection,
   subscribeWalletEvents,
@@ -38,6 +39,7 @@ import { ArcPassMark } from "@/components/ArcPassMark";
 import { shortAddress } from "@/lib/format";
 import { paymentCanProceed, paymentReadinessChecks } from "@/lib/payment-readiness";
 import { publicPaymentReceiptLink } from "@/lib/payment-receipt";
+import { checkoutRecoveryPlan } from "@/lib/checkout-recovery";
 
 const erc20Abi = [
   {
@@ -66,6 +68,7 @@ const publicClient = createPublicClient({
 const TX_HASH_PATTERN = /^0x[0-9a-fA-F]{64}$/;
 
 type PaymentStatus = "idle" | "connecting" | "ready" | "paying" | "verifying" | "paid" | "error";
+type RecoveryStatus = "idle" | "checking" | "recovered" | "error";
 type VerifiedReceipt = {
   amount: string;
   blockNumber: string;
@@ -98,6 +101,8 @@ export function ArcPaymentPanel({
   const [isLoadingPublicState, setIsLoadingPublicState] = useState(true);
   const [isRegistered, setIsRegistered] = useState<boolean | null>(null);
   const [networkReady, setNetworkReady] = useState(false);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus>("idle");
   const amountRaw = useMemo(() => invoiceAmountRaw(invoice), [invoice]);
   const merchantAddress = invoice.merchant.walletAddress;
   const token = ARCPASS_TOKENS[invoice.token];
@@ -114,6 +119,14 @@ export function ArcPaymentPanel({
     payerSelected: Boolean(payer),
   });
   const paymentReady = paymentCanProceed(readinessChecks);
+  const recoveryPlan = checkoutRecoveryPlan({
+    balanceKnown: balance !== null,
+    hasError: Boolean(error || recoveryError),
+    networkReady,
+    payerSelected: Boolean(payer),
+    paymentComplete: Boolean(publicReceipt) || status === "paid",
+    paymentLocked: expired || isRegistered === false,
+  });
 
   useEffect(() => {
     async function loadPublicInvoiceState() {
@@ -151,7 +164,11 @@ export function ArcPaymentPanel({
 
   useEffect(() => {
     if (!payer) return;
-    void refreshBalance(payer);
+    void refreshBalance(payer).catch((err: unknown) => {
+      setBalance(null);
+      setRecoveryError(walletErrorMessage(err));
+      setRecoveryStatus("error");
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [payer, invoice.token]);
 
@@ -162,6 +179,8 @@ export function ArcPaymentPanel({
       setPayer(null);
       setNetworkReady(false);
       setReceiptError(null);
+      setRecoveryError(null);
+      setRecoveryStatus("idle");
       setStatus("idle");
     });
   }, []);
@@ -177,8 +196,11 @@ export function ArcPaymentPanel({
       setPayer(address);
       setStatus("ready");
       await refreshBalance(address);
+      setRecoveryError(null);
+      setRecoveryStatus("recovered");
     } catch (err) {
       setError(walletErrorMessage(err));
+      setRecoveryStatus("error");
       setStatus("error");
     }
   }
@@ -191,6 +213,32 @@ export function ArcPaymentPanel({
       functionName: "balanceOf",
     });
     setBalance(value);
+  }
+
+  async function recoverCheckout() {
+    if (recoveryPlan.actionLabel === null || status === "paying" || status === "verifying") return;
+    setRecoveryStatus("checking");
+    setRecoveryError(null);
+    try {
+      await ensurePaymentNetwork(ARC_TESTNET_NETWORK);
+      setNetworkReady(true);
+      let address = payer;
+      const connectedAddress = await getConnectedWalletAddress();
+      if (!address || !connectedAddress || connectedAddress.toLowerCase() !== address.toLowerCase()) {
+        address = await requestVerifiedWalletAddressSelection();
+      }
+      setPayer(address);
+      await refreshBalance(address);
+      setError(null);
+      setReceiptError(null);
+      setStatus("ready");
+      setRecoveryStatus("recovered");
+    } catch (err) {
+      setNetworkReady(false);
+      setRecoveryError(walletErrorMessage(err));
+      setRecoveryStatus("error");
+      setStatus("error");
+    }
   }
 
   async function payInvoice() {
@@ -472,6 +520,14 @@ export function ArcPaymentPanel({
               </div>
             ))}
           </div>
+        </section>
+
+        <section className="arcpass-panel arcpass-network-recovery" data-kind={recoveryPlan.kind}>
+          <div className="arcpass-recovery-heading"><div><p className="arcpass-panel-label">Checkout network recovery</p><h3>{recoveryPlan.title}</h3><p>{recoveryPlan.detail}</p></div><span>{recoveryStatus === "checking" ? "Checking" : recoveryPlan.kind}</span></div>
+          <div className="arcpass-recovery-checks"><div data-ready={Boolean(payer)}><span>{payer ? "✓" : "1"}</span><strong>Payer wallet</strong><small>{payer ? shortAddress(payer) : "Reconnect required"}</small></div><div data-ready={networkReady}><span>{networkReady ? "✓" : "2"}</span><strong>Arc Testnet</strong><small>{networkReady ? "Network confirmed" : "Switch required"}</small></div><div data-ready={balance !== null}><span>{balance !== null ? "✓" : "3"}</span><strong>{invoice.token} balance</strong><small>{balance === null ? "Refresh required" : `${formatInvoiceAmount(balance, invoice.token)} ${invoice.token}`}</small></div></div>
+          {recoveryPlan.actionLabel ? <button type="button" className="arcpass-dark-button" onClick={() => void recoverCheckout()} disabled={recoveryStatus === "checking" || status === "paying" || status === "verifying"}>{recoveryStatus === "checking" ? "Running recovery" : recoveryPlan.actionLabel}</button> : null}
+          {recoveryStatus === "recovered" && recoveryPlan.kind === "healthy" ? <p className="arcpass-success">Connection recovered. Payment readiness has been refreshed.</p> : null}
+          {recoveryError ? <p className="arcpass-error" role="alert">{recoveryError}</p> : null}
         </section>
 
         <div className="arcpass-panel">

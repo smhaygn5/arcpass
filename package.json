@@ -9,7 +9,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint app components lib scripts eslint.config.mjs next.config.ts postcss.config.mjs",
-    "test": "node --test lib/arcpass.test.ts lib/invoice-lifecycle.test.ts lib/payment-readiness.test.ts lib/payment-link-kit.test.ts lib/invoice-templates.test.ts lib/revenue-insights.test.ts lib/payment-receipt.test.ts lib/refunds.test.ts lib/collection-reminders.test.ts lib/bulk-invoices.test.ts",
+    "test": "node --test lib/arcpass.test.ts lib/invoice-lifecycle.test.ts lib/payment-readiness.test.ts lib/payment-link-kit.test.ts lib/invoice-templates.test.ts lib/revenue-insights.test.ts lib/payment-receipt.test.ts lib/refunds.test.ts lib/collection-reminders.test.ts lib/bulk-invoices.test.ts lib/checkout-recovery.test.ts",
     "db:migrate": "node --env-file=.env.local scripts/migrate-database.mjs",
     "db:check": "node --env-file=.env.local scripts/check-database.mjs",
     "db:smoke": "node --env-file=.env.local scripts/smoke-supabase.mjs"
