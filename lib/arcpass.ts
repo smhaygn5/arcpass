@@ -8,6 +8,7 @@ import {
   type Address,
 } from "viem";
 import { arcScanAddressUrl, arcScanTxUrl } from "./arc-chain.ts";
+import { normalizePaymentLinkBranding, type PaymentLinkBranding } from "./payment-branding.ts";
 
 export const ARCPASS_VERSION = 1;
 export const MAX_INVOICE_PAYLOAD_LENGTH = 16_384;
@@ -34,6 +35,7 @@ export type MerchantPassport = {
 
 export type ArcPassInvoice = {
   amount: string;
+  branding?: PaymentLinkBranding;
   createdAt: string;
   description: string;
   expiresAt: string;
@@ -115,6 +117,7 @@ export function createMerchantPassport(input: {
 
 export function createInvoice(input: {
   amount: string;
+  branding?: PaymentLinkBranding;
   description: string;
   expiresAt: string;
   merchant: MerchantPassport;
@@ -131,9 +134,12 @@ export function createInvoice(input: {
   if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
     throw new Error("Invoice expiry date must be in the future.");
   }
+  const branding = input.branding === undefined ? undefined : normalizePaymentLinkBranding(input.branding);
+  if (input.branding !== undefined && !branding) throw new Error("Payment link branding is invalid.");
 
   return {
     amount: normalizeAmount(input.amount),
+    ...(branding ? { branding } : {}),
     createdAt: new Date().toISOString(),
     description,
     expiresAt: expiresAt.toISOString(),
@@ -169,10 +175,13 @@ export function decodeInvoicePayload(payload: string): ArcPassInvoice | null {
 
     const merchant = normalizeMerchantPassport(invoice.merchant);
     if (!merchant) return null;
+    const branding = invoice.branding === undefined ? undefined : normalizePaymentLinkBranding(invoice.branding);
+    if (invoice.branding !== undefined && !branding) return null;
     assertValidAmount(invoice.amount, invoice.token);
 
     return {
       amount: normalizeAmount(invoice.amount),
+      ...(branding ? { branding } : {}),
       createdAt: new Date(invoice.createdAt).toISOString(),
       description: invoice.description.trim(),
       expiresAt: new Date(invoice.expiresAt).toISOString(),
@@ -323,6 +332,7 @@ function normalizeAmount(amount: string) {
 function stableInvoiceJson(invoice: ArcPassInvoice) {
   return JSON.stringify({
     amount: normalizeAmount(invoice.amount),
+    ...(invoice.branding ? { branding: invoice.branding } : {}),
     description: invoice.description,
     expiresAt: new Date(invoice.expiresAt).toISOString(),
     invoiceId: invoice.invoiceId,

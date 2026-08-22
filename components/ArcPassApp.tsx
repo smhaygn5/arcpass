@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { Address } from "viem";
 import { ArcPassMark } from "@/components/ArcPassMark";
 import { PaymentLinkQr } from "@/components/PaymentLinkQr";
@@ -54,6 +54,7 @@ import { formatRevenueAmount, merchantRevenueInsights } from "@/lib/revenue-insi
 import { isRefundRequest, type RefundRequest, type RefundRequestStatus } from "@/lib/refunds";
 import { collectionReminders, type CollectionReminder } from "@/lib/collection-reminders";
 import { parseBulkInvoiceDrafts, type BulkInvoiceDraft } from "@/lib/bulk-invoices";
+import { DEFAULT_PAYMENT_LINK_BRANDING, PAYMENT_BRAND_ACCENTS, merchantMonogram, type PaymentBrandAccent, type PaymentLinkBranding } from "@/lib/payment-branding";
 
 const WORKSPACE_TABS = [
   { id: "dashboard", label: "Dashboard" },
@@ -298,7 +299,7 @@ export function ArcPassApp() {
     }
   }
 
-  async function createPaymentLink() {
+  async function createPaymentLink(branding: PaymentLinkBranding) {
     setError(null);
     setServerInvoiceError(null);
 
@@ -316,6 +317,7 @@ export function ArcPassApp() {
       });
       const invoice = createInvoice({
         amount,
+        branding,
         description,
         expiresAt: new Date(expiresAt).toISOString(),
         merchant,
@@ -353,14 +355,14 @@ export function ArcPassApp() {
     }
   }
 
-  async function createBulkPaymentLinks(drafts: BulkInvoiceDraft[]) {
+  async function createBulkPaymentLinks(drafts: BulkInvoiceDraft[], branding: PaymentLinkBranding) {
     setError(null);
     setServerInvoiceError(null);
     try {
       if (!walletAddress) throw new Error("Connect a merchant wallet before creating invoices.");
       const merchant = createMerchantPassport({ businessName, domain, refundPolicy, status: passportStatus, walletAddress });
       const batch = drafts.map((draft) => {
-        const invoice = createInvoice({ amount: draft.amount, description: draft.description, expiresAt: new Date(Date.now() + draft.expiryHours * 3_600_000).toISOString(), merchant, token: draft.token });
+        const invoice = createInvoice({ amount: draft.amount, branding, description: draft.description, expiresAt: new Date(Date.now() + draft.expiryHours * 3_600_000).toISOString(), merchant, token: draft.token });
         return createSavedInvoice({ invoice, origin: window.location.origin });
       });
       const res = await fetch("/api/invoices", { body: JSON.stringify({ payloads: batch.map((item) => item.payload) }), headers: { "content-type": "application/json" }, method: "POST" });
@@ -520,6 +522,7 @@ export function ArcPassApp() {
         {activeTab === "invoice" ? (
           <InvoiceTab
             amount={amount}
+            businessName={businessName}
             createBulkPaymentLinks={createBulkPaymentLinks}
             createPaymentLink={createPaymentLink}
             description={description}
@@ -845,6 +848,7 @@ function VerifyTab({
 
 function InvoiceTab({
   amount,
+  businessName,
   createBulkPaymentLinks,
   createPaymentLink,
   description,
@@ -856,8 +860,9 @@ function InvoiceTab({
   token,
 }: {
   amount: string;
-  createBulkPaymentLinks: (drafts: BulkInvoiceDraft[]) => Promise<number>;
-  createPaymentLink: () => Promise<void>;
+  businessName: string;
+  createBulkPaymentLinks: (drafts: BulkInvoiceDraft[], branding: PaymentLinkBranding) => Promise<number>;
+  createPaymentLink: (branding: PaymentLinkBranding) => Promise<void>;
   description: string;
   expiresAt: string;
   setAmount: (value: string) => void;
@@ -872,7 +877,11 @@ function InvoiceTab({
   const [bulkError, setBulkError] = useState<string | null>(null);
   const [bulkSuccess, setBulkSuccess] = useState<string | null>(null);
   const [isCreatingBulk, setIsCreatingBulk] = useState(false);
+  const [brandAccent, setBrandAccent] = useState<PaymentBrandAccent>(DEFAULT_PAYMENT_LINK_BRANDING.accent);
+  const [brandMessage, setBrandMessage] = useState("");
+  const [showMonogram, setShowMonogram] = useState(true);
   const bulkPreview = useMemo(() => parseBulkInvoiceDrafts(bulkInput), [bulkInput]);
+  const branding = useMemo<PaymentLinkBranding>(() => ({ accent: brandAccent, message: brandMessage.trim(), showMonogram }), [brandAccent, brandMessage, showMonogram]);
 
   function applyTemplate(template: InvoiceTemplate) {
     setAmount(template.amount);
@@ -904,7 +913,7 @@ function InvoiceTab({
     if (bulkPreview.errors.length || bulkPreview.drafts.length === 0) { setBulkError("Fix every row before creating the batch."); return; }
     setIsCreatingBulk(true);
     try {
-      const count = await createBulkPaymentLinks(bulkPreview.drafts);
+      const count = await createBulkPaymentLinks(bulkPreview.drafts, branding);
       setBulkSuccess(`${count} verified payment links created.`);
       setBulkInput("");
     } catch (err) {
@@ -955,7 +964,11 @@ function InvoiceTab({
         <input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Template name (optional)" className={INPUT_CLASS} />
         <button type="button" onClick={saveCurrentTemplate} className="arcpass-ghost-button">Save current as template</button>
       </div>
-      <button type="button" onClick={() => void createPaymentLink()} className="arcpass-dark-button arcpass-inline-action">
+      <section className="arcpass-branding-builder">
+        <div className="arcpass-branding-heading"><div><p className="arcpass-panel-label">Payment link branding</p><h3>Make the checkout recognizable.</h3><p>Brand styling stays inside ArcPass’s fixed, accessible checkout structure.</p></div><div className="arcpass-brand-preview" style={{ "--brand-preview": PAYMENT_BRAND_ACCENTS[brandAccent].color, "--brand-preview-soft": PAYMENT_BRAND_ACCENTS[brandAccent].soft } as CSSProperties}>{showMonogram ? <span>{merchantMonogram(businessName)}</span> : null}<div><strong>{businessName}</strong><small>{brandMessage.trim() || "Verified payment via ArcPass"}</small></div></div></div>
+        <div className="arcpass-branding-controls"><fieldset><legend>Accent</legend><div>{Object.entries(PAYMENT_BRAND_ACCENTS).map(([id, option]) => <label key={id}><input type="radio" name="payment-brand-accent" value={id} checked={brandAccent === id} onChange={() => setBrandAccent(id as PaymentBrandAccent)} /><span style={{ background: option.color }} /><em>{option.label}</em></label>)}</div></fieldset><label className="arcpass-brand-message"><span>Checkout message</span><input value={brandMessage} onChange={(event) => setBrandMessage(event.target.value)} maxLength={120} placeholder="A short note for your customer" className={INPUT_CLASS} /><small>{brandMessage.trim().length}/120</small></label><label className="arcpass-brand-toggle"><input type="checkbox" checked={showMonogram} onChange={(event) => setShowMonogram(event.target.checked)} /><span>Show merchant monogram</span></label></div>
+      </section>
+      <button type="button" onClick={() => void createPaymentLink(branding)} className="arcpass-dark-button arcpass-inline-action">
         Generate verified payment link
       </button>
       <section className="arcpass-bulk-builder">

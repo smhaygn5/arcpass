@@ -754,6 +754,29 @@ button:disabled {
 .arcpass-bulk-preview p, .arcpass-bulk-preview ul { color: #637087; font-size: 0.75rem; margin: 0; }
 .arcpass-bulk-preview ul { color: #b43c4a; display: grid; gap: 4px; padding-left: 18px; }
 .arcpass-bulk-builder > .arcpass-dark-button { justify-self: start; }
+.arcpass-branding-builder { border-top: 1px solid #e3e7ee; display: grid; gap: 16px; margin-top: 24px; padding-top: 22px; }
+.arcpass-branding-heading { align-items: start; display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr) minmax(250px, 0.72fr); }
+.arcpass-branding-heading h3 { font-size: 1.15rem; margin: 5px 0; }
+.arcpass-branding-heading > div:first-child > p:last-child { color: #69758a; font-size: 0.78rem; margin: 0; }
+.arcpass-brand-preview { align-items: center; background: var(--brand-preview-soft); border: 1px solid color-mix(in srgb, var(--brand-preview) 28%, transparent); border-radius: 12px; display: flex; gap: 11px; min-height: 82px; padding: 14px; }
+.arcpass-brand-preview > span { align-items: center; background: var(--brand-preview); border-radius: 10px; color: #fff; display: flex; font-size: 0.82rem; font-weight: 900; height: 38px; justify-content: center; letter-spacing: 0.04em; width: 38px; }
+.arcpass-brand-preview > div { display: grid; gap: 3px; min-width: 0; }
+.arcpass-brand-preview strong { color: #131a28; font-size: 0.82rem; overflow-wrap: anywhere; }
+.arcpass-brand-preview small { color: #626e82; font-size: 0.7rem; overflow-wrap: anywhere; }
+.arcpass-branding-controls { display: grid; gap: 13px; grid-template-columns: minmax(260px, 0.8fr) minmax(280px, 1.2fr); }
+.arcpass-branding-controls fieldset { border: 0; margin: 0; padding: 0; }
+.arcpass-branding-controls legend, .arcpass-brand-message > span { color: #344158; font-size: 0.75rem; font-weight: 800; margin-bottom: 7px; }
+.arcpass-branding-controls fieldset > div { display: flex; flex-wrap: wrap; gap: 7px; }
+.arcpass-branding-controls fieldset label { align-items: center; background: #f7f9fc; border: 1px solid #e0e5ed; border-radius: 999px; cursor: pointer; display: flex; gap: 6px; padding: 7px 9px; }
+.arcpass-branding-controls fieldset input { opacity: 0; pointer-events: none; position: absolute; }
+.arcpass-branding-controls fieldset label:has(input:checked) { background: #edf3ff; border-color: #7ea8ff; }
+.arcpass-branding-controls fieldset label > span { border-radius: 50%; height: 13px; width: 13px; }
+.arcpass-branding-controls fieldset em { color: #4f5b70; font-size: 0.7rem; font-style: normal; font-weight: 750; }
+.arcpass-brand-message { display: grid; gap: 0; position: relative; }
+.arcpass-brand-message small { bottom: 11px; color: #8490a2; font-size: 0.65rem; position: absolute; right: 10px; }
+.arcpass-brand-message input { padding-right: 48px; }
+.arcpass-brand-toggle { align-items: center; color: #4b586d; display: flex; font-size: 0.75rem; font-weight: 750; gap: 8px; grid-column: 1 / -1; }
+.arcpass-brand-toggle input { accent-color: #1b66ff; height: 16px; width: 16px; }
 
 .arcpass-readiness-panel { display: grid; gap: 18px; }
 .arcpass-readiness-heading { align-items: start; display: flex; gap: 16px; justify-content: space-between; }
@@ -820,6 +843,7 @@ button:disabled {
 @media (max-width: 640px) {
   .arcpass-readiness-list { grid-template-columns: 1fr; }
   .arcpass-recovery-checks { grid-template-columns: 1fr; }
+  .arcpass-branding-heading, .arcpass-branding-controls { grid-template-columns: 1fr; }
   .arcpass-lifecycle-event { grid-template-columns: 16px minmax(0, 1fr); }
   .arcpass-lifecycle-event time { grid-column: 2; text-align: left; }
   .arcpass-public-passport-shell { grid-template-columns: 1fr; padding: 25px 17px 48px; }
@@ -1377,7 +1401,16 @@ button:disabled {
 }
 
 .arcpass-checkout-page {
+  --arcpass-brand-accent: #1b66ff;
+  --arcpass-brand-soft: #e8f0ff;
   padding-top: 10px;
+}
+
+.arcpass-checkout-page .arcpass-hero-background {
+  background:
+    radial-gradient(circle at 11% 84%, color-mix(in srgb, var(--arcpass-brand-accent) 16%, transparent), transparent 22%),
+    radial-gradient(circle at 80% 18%, color-mix(in srgb, var(--arcpass-brand-accent) 25%, transparent), transparent 24%),
+    linear-gradient(110deg, rgba(255, 250, 246, 0.94), var(--arcpass-brand-soft) 60%, rgba(247, 249, 255, 0.94));
 }
 
 .arcpass-checkout-shell > *,
@@ -1417,6 +1450,13 @@ button:disabled {
 .arcpass-checkout-copy {
   max-width: 720px;
 }
+
+.arcpass-checkout-brand { align-items: center; background: rgba(255, 255, 255, 0.68); border: 1px solid color-mix(in srgb, var(--arcpass-brand-accent) 22%, transparent); border-radius: 13px; display: inline-flex; gap: 10px; margin-bottom: 22px; max-width: 520px; padding: 10px 12px; backdrop-filter: blur(9px); }
+.arcpass-checkout-brand > span { align-items: center; background: var(--arcpass-brand-accent); border-radius: 9px; color: #fff; display: flex; flex: 0 0 auto; font-size: 0.78rem; font-weight: 900; height: 36px; justify-content: center; letter-spacing: 0.04em; width: 36px; }
+.arcpass-checkout-brand > div { display: grid; gap: 2px; min-width: 0; }
+.arcpass-checkout-brand strong { color: #111318; font-size: 0.82rem; overflow-wrap: anywhere; }
+.arcpass-checkout-brand small { color: #59667b; font-size: 0.7rem; overflow-wrap: anywhere; }
+.arcpass-checkout-paybox { border-top: 3px solid var(--arcpass-brand-accent); }
 
 .arcpass-checkout-paybox strong {
   font-size: 42px;

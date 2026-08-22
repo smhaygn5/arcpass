@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
   createPublicClient,
   createWalletClient,
@@ -40,6 +40,7 @@ import { shortAddress } from "@/lib/format";
 import { paymentCanProceed, paymentReadinessChecks } from "@/lib/payment-readiness";
 import { publicPaymentReceiptLink } from "@/lib/payment-receipt";
 import { checkoutRecoveryPlan } from "@/lib/checkout-recovery";
+import { DEFAULT_PAYMENT_LINK_BRANDING, PAYMENT_BRAND_ACCENTS, merchantMonogram } from "@/lib/payment-branding";
 
 const erc20Abi = [
   {
@@ -119,6 +120,8 @@ export function ArcPaymentPanel({
     payerSelected: Boolean(payer),
   });
   const paymentReady = paymentCanProceed(readinessChecks);
+  const branding = invoice.branding ?? DEFAULT_PAYMENT_LINK_BRANDING;
+  const brandAccent = PAYMENT_BRAND_ACCENTS[branding.accent];
   const recoveryPlan = checkoutRecoveryPlan({
     balanceKnown: balance !== null,
     hasError: Boolean(error || recoveryError),
@@ -362,7 +365,7 @@ export function ArcPaymentPanel({
   }
 
   return (
-    <section className="arcpass-page arcpass-checkout-page">
+    <section className="arcpass-page arcpass-checkout-page" style={{ "--arcpass-brand-accent": brandAccent.color, "--arcpass-brand-soft": brandAccent.soft } as CSSProperties}>
       <div className="arcpass-checkout-shell">
         <div className="arcpass-checkout-hero">
           <div className="arcpass-hero-background" aria-hidden="true" />
@@ -381,6 +384,7 @@ export function ArcPaymentPanel({
 
           <div className="arcpass-checkout-content">
             <div className="arcpass-checkout-copy">
+              <div className="arcpass-checkout-brand">{branding.showMonogram ? <span>{merchantMonogram(invoice.merchant.businessName)}</span> : null}<div><strong>{invoice.merchant.businessName}</strong><small>{branding.message || "Verified payment via ArcPass"}</small></div></div>
               <p className="arcpass-eyebrow">Verified invoice</p>
               <h1>{invoice.description}</h1>
               <p>

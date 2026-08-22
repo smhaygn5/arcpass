@@ -32,6 +32,7 @@ test("creates and decodes a verified invoice payload", () => {
   });
   const invoice = createInvoice({
     amount: "12.50",
+    branding: { accent: "violet", message: "Secure checkout for Northstar clients.", showMonogram: true },
     description: "AI research report",
     expiresAt: new Date(Date.now() + 60_000).toISOString(),
     merchant,
@@ -43,6 +44,7 @@ test("creates and decodes a verified invoice payload", () => {
 
   assert.equal(decoded?.amount, "12.50");
   assert.equal(decoded?.merchant.domain, "northstar.example");
+  assert.equal(decoded?.branding?.accent, "violet");
   assert.equal(invoiceAmountRaw(invoice), 12_500_000n);
   assert.match(invoiceHash(invoice), /^0x[0-9a-f]{64}$/);
 });
