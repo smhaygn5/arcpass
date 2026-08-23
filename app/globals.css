@@ -1374,6 +1374,128 @@ button:disabled {
   min-width: 0;
 }
 
+.arcpass-payer-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.arcpass-payer-heading,
+.arcpass-payer-item,
+.arcpass-payer-identity,
+.arcpass-payer-actions {
+  display: flex;
+  align-items: center;
+}
+
+.arcpass-payer-heading,
+.arcpass-payer-item {
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.arcpass-payer-heading > span {
+  border: 1px solid rgba(0, 82, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(232, 241, 255, 0.8);
+  color: #154ab1;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+
+.arcpass-payer-list {
+  display: grid;
+  gap: 10px;
+}
+
+.arcpass-payer-item {
+  border: 1px solid rgba(17, 19, 24, 0.08);
+  border-radius: 8px;
+  background: rgba(247, 250, 252, 0.8);
+  padding: 14px;
+}
+
+.arcpass-payer-identity {
+  min-width: 230px;
+  gap: 11px;
+}
+
+.arcpass-payer-identity > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 50%;
+  background: #111318;
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.arcpass-payer-identity strong,
+.arcpass-payer-identity small {
+  display: block;
+}
+
+.arcpass-payer-identity strong {
+  color: #111318;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.arcpass-payer-identity small {
+  margin-top: 4px;
+  color: #687181;
+  font-size: 11px;
+}
+
+.arcpass-payer-volumes {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  justify-content: center;
+  gap: 8px;
+}
+
+.arcpass-payer-volumes span {
+  border-radius: 6px;
+  background: rgba(17, 19, 24, 0.05);
+  color: #596273;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 8px 10px;
+}
+
+.arcpass-payer-volumes b {
+  color: #111318;
+}
+
+.arcpass-payer-actions {
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.arcpass-payer-actions i {
+  border: 1px solid rgba(17, 19, 24, 0.08);
+  border-radius: 999px;
+  color: #687181;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+  padding: 7px 9px;
+  white-space: nowrap;
+}
+
+.arcpass-payer-actions i[data-repeat="true"] {
+  border-color: rgba(10, 143, 97, 0.22);
+  background: rgba(219, 250, 237, 0.78);
+  color: #08734e;
+}
+
 .arcpass-error,
 .arcpass-success {
   margin-top: 16px;
@@ -1682,6 +1804,9 @@ button:disabled {
   .arcpass-ledger-sync,
   .arcpass-ops-toolbar,
   .arcpass-report-toolbar,
+  .arcpass-payer-heading,
+  .arcpass-payer-item,
+  .arcpass-payer-actions,
   .arcpass-receipt-check,
   .arcpass-import-grid {
     align-items: flex-start;
@@ -1695,6 +1820,19 @@ button:disabled {
   }
 
   .arcpass-export-button {
+    width: 100%;
+  }
+
+  .arcpass-payer-identity {
+    min-width: 0;
+  }
+
+  .arcpass-payer-volumes {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .arcpass-payer-actions .arcpass-ghost-button {
     width: 100%;
   }
 

@@ -55,6 +55,7 @@ import { isRefundRequest, type RefundRequest, type RefundRequestStatus } from "@
 import { collectionReminders, type CollectionReminder } from "@/lib/collection-reminders";
 import { parseBulkInvoiceDrafts, type BulkInvoiceDraft } from "@/lib/bulk-invoices";
 import { DEFAULT_PAYMENT_LINK_BRANDING, PAYMENT_BRAND_ACCENTS, merchantMonogram, type PaymentBrandAccent, type PaymentLinkBranding } from "@/lib/payment-branding";
+import { buildPayerDirectory, type PayerDirectoryEntry } from "@/lib/payer-directory";
 
 const WORKSPACE_TABS = [
   { id: "dashboard", label: "Dashboard" },
@@ -1321,6 +1322,8 @@ function ReceiptsTab({
         />
       </div>
 
+      <PayerDirectoryPanel receiptHistory={receiptHistory} />
+
       <div className="arcpass-panel">
         <p className="arcpass-panel-label">Open invoice links</p>
         <h3>Links ready for buyer testing.</h3>
@@ -1333,6 +1336,70 @@ function ReceiptsTab({
 
       <RefundRequestsPanel walletAddress={walletAddress} />
     </div>
+  );
+}
+
+function PayerDirectoryPanel({ receiptHistory }: { receiptHistory: SavedReceipt[] }) {
+  const [copiedPayer, setCopiedPayer] = useState<Address | null>(null);
+  const [payerQuery, setPayerQuery] = useState("");
+  const directory = useMemo(() => buildPayerDirectory(receiptHistory), [receiptHistory]);
+  const filteredDirectory = useMemo(() => {
+    const query = payerQuery.trim().toLowerCase();
+    if (!query) return directory;
+    return directory.filter((entry) => entry.payer.toLowerCase().includes(query));
+  }, [directory, payerQuery]);
+
+  async function copyPayer(entry: PayerDirectoryEntry) {
+    await window.navigator.clipboard.writeText(entry.payer);
+    setCopiedPayer(entry.payer);
+    window.setTimeout(() => setCopiedPayer((current) => current === entry.payer ? null : current), 1800);
+  }
+
+  return (
+    <section className="arcpass-panel arcpass-payer-panel">
+      <div className="arcpass-payer-heading">
+        <div>
+          <p className="arcpass-panel-label">Payer directory</p>
+          <h3>Understand returning customer wallets.</h3>
+        </div>
+        <span>{directory.length} verified wallets</span>
+      </div>
+      <p className="arcpass-muted">Built only from verified Arc payments. ArcPass groups wallet activity without inferring a payer&apos;s real-world identity.</p>
+      <label className="arcpass-search-field arcpass-search-field-full">
+        <span>Search payer wallets</span>
+        <input
+          value={payerQuery}
+          onChange={(event) => setPayerQuery(event.target.value)}
+          placeholder="0x..."
+          className={INPUT_CLASS}
+        />
+      </label>
+      {filteredDirectory.length ? (
+        <div className="arcpass-payer-list">
+          {filteredDirectory.map((entry) => (
+            <article key={entry.payer.toLowerCase()} className="arcpass-payer-item">
+              <div className="arcpass-payer-identity">
+                <span aria-hidden="true">{entry.payer.slice(2, 4).toUpperCase()}</span>
+                <div>
+                  <strong>{shortAddress(entry.payer)}</strong>
+                  <small>Last paid {new Date(entry.lastPaid).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}</small>
+                </div>
+              </div>
+              <div className="arcpass-payer-volumes" aria-label="Verified payment volume">
+                {entry.totals.USDC > 0 ? <span><b>{formatRevenueAmount(entry.totals.USDC)}</b> USDC</span> : null}
+                {entry.totals.EURC > 0 ? <span><b>{formatRevenueAmount(entry.totals.EURC)}</b> EURC</span> : null}
+              </div>
+              <div className="arcpass-payer-actions">
+                <i data-repeat={entry.paymentCount > 1}>{entry.paymentCount > 1 ? `Returning · ${entry.paymentCount} payments` : "New · 1 payment"}</i>
+                <button type="button" className="arcpass-ghost-button" onClick={() => void copyPayer(entry)}>
+                  {copiedPayer?.toLowerCase() === entry.payer.toLowerCase() ? "Copied" : "Copy wallet"}
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : <p className="arcpass-empty">{directory.length ? "No payer wallet matches this search." : "Verified payer wallets will appear after the first payment."}</p>}
+    </section>
   );
 }
 
