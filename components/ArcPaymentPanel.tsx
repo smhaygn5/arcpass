@@ -41,6 +41,7 @@ import { paymentCanProceed, paymentReadinessChecks } from "@/lib/payment-readine
 import { publicPaymentReceiptLink } from "@/lib/payment-receipt";
 import { checkoutRecoveryPlan } from "@/lib/checkout-recovery";
 import { DEFAULT_PAYMENT_LINK_BRANDING, PAYMENT_BRAND_ACCENTS, merchantMonogram } from "@/lib/payment-branding";
+import { CrossChainCheckout } from "@/components/CrossChainCheckout";
 
 const erc20Abi = [
   {
@@ -435,6 +436,22 @@ export function ArcPaymentPanel({
 
           <ArcPassMark compact className="arcpass-corner-logo" />
         </div>
+
+        <CrossChainCheckout
+          disabledReason={
+            expired
+              ? "This invoice is expired, so cross-chain funding is disabled."
+              : publicReceipt
+                ? "This invoice is already paid. Do not bridge or send more funds for it."
+                : isRegistered === false
+                  ? "ArcPass could not confirm this invoice registration. Cross-chain funding is disabled."
+                  : isRegistered === null
+                    ? "Wait for ArcPass to confirm this invoice before preparing funds."
+                    : null
+          }
+          invoice={invoice}
+          onContinueToArc={connectWallet}
+        />
 
         <div className="arcpass-checkout-grid">
           <div className="arcpass-panel">

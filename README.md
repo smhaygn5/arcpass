@@ -9,6 +9,8 @@ ArcPass combines a merchant passport with buyer-readable stablecoin payment link
 - Verified invoice link generation
 - Public checkout page at `/pay/[payload]`
 - Arc Testnet ERC-20 transfer flow for USDC/EURC style payments
+- Cross-chain USDC checkout preparation from Ethereum, Base, or Arbitrum Sepolia through Circle CCTP Standard Transfer
+- Source USDC, native gas, route fee, and invoice-state preflight before any bridge transaction is requested
 - Local invoice and receipt cache for fast merchant access
 - PostgreSQL-backed invoices, receipts, merchant sessions, challenges, and rate limits
 - Payment blocked until the invoice is confirmed in the ArcPass server registry

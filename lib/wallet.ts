@@ -111,6 +111,20 @@ const CHAINS: Record<string, WalletChain> = {
     nativeCurrency: { decimals: 18, name: "Sepolia Ether", symbol: "ETH" },
     rpcUrls: ["https://sepolia.base.org"],
   },
+  "eip155:11155111": {
+    blockExplorerUrls: ["https://sepolia.etherscan.io"],
+    chainId: "0xaa36a7",
+    chainName: "Ethereum Sepolia",
+    nativeCurrency: { decimals: 18, name: "Sepolia Ether", symbol: "ETH" },
+    rpcUrls: ["https://ethereum-sepolia-rpc.publicnode.com"],
+  },
+  "eip155:421614": {
+    blockExplorerUrls: ["https://sepolia.arbiscan.io"],
+    chainId: "0x66eee",
+    chainName: "Arbitrum Sepolia",
+    nativeCurrency: { decimals: 18, name: "Arbitrum Sepolia Ether", symbol: "ETH" },
+    rpcUrls: ["https://sepolia-rollup.arbitrum.io/rpc"],
+  },
 };
 
 export function hasInjectedWallet() {
