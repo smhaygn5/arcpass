@@ -31,3 +31,36 @@ test("orders payer wallets by their most recent verified payment", () => {
 
   assert.deepEqual(directory.map((entry) => entry.payer), [PAYER_B, PAYER_A]);
 });
+
+test("creates explainable new, returning and at-risk payer segments", () => {
+  const now = new Date("2026-08-24T12:00:00.000Z");
+  const newPayer = buildPayerDirectory([
+    { amount: "5", paidAt: "2026-08-23T12:00:00.000Z", payer: PAYER_A, token: "USDC" },
+  ], now)[0];
+  const returningPayer = buildPayerDirectory([
+    { amount: "5", paidAt: "2026-08-20T12:00:00.000Z", payer: PAYER_A, token: "USDC" },
+    { amount: "9", paidAt: "2026-08-23T12:00:00.000Z", payer: PAYER_A, token: "USDC" },
+  ], now)[0];
+  const atRiskPayer = buildPayerDirectory([
+    { amount: "5", paidAt: "2026-06-01T12:00:00.000Z", payer: PAYER_A, token: "EURC" },
+    { amount: "7", paidAt: "2026-06-20T12:00:00.000Z", payer: PAYER_A, token: "EURC" },
+  ], now)[0];
+
+  assert.equal(newPayer.segment, "new");
+  assert.equal(returningPayer.segment, "returning");
+  assert.equal(atRiskPayer.segment, "at-risk");
+  assert.equal(atRiskPayer.daysSinceLastPayment, 65);
+});
+
+test("calculates a preferred settlement token and average payment per token", () => {
+  const entry = buildPayerDirectory([
+    { amount: "10", paidAt: "2026-08-20T12:00:00.000Z", payer: PAYER_A, token: "USDC" },
+    { amount: "20", paidAt: "2026-08-21T12:00:00.000Z", payer: PAYER_A, token: "USDC" },
+    { amount: "100", paidAt: "2026-08-22T12:00:00.000Z", payer: PAYER_A, token: "EURC" },
+  ], new Date("2026-08-24T12:00:00.000Z"))[0];
+
+  assert.equal(entry.preferredToken, "USDC");
+  assert.equal(entry.averages.USDC, 15);
+  assert.equal(entry.averages.EURC, 100);
+  assert.equal(entry.relationshipDays, 3);
+});

@@ -1409,6 +1409,16 @@ button:disabled {
   gap: 10px;
 }
 
+.arcpass-payer-insights {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.arcpass-payer-segments {
+  width: fit-content;
+}
+
 .arcpass-payer-item {
   border: 1px solid rgba(17, 19, 24, 0.08);
   border-radius: 8px;
@@ -1474,6 +1484,13 @@ button:disabled {
   color: #111318;
 }
 
+.arcpass-payer-volumes small {
+  color: #687181;
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
 .arcpass-payer-actions {
   justify-content: flex-end;
   gap: 10px;
@@ -1490,10 +1507,16 @@ button:disabled {
   white-space: nowrap;
 }
 
-.arcpass-payer-actions i[data-repeat="true"] {
+.arcpass-payer-actions i[data-segment="returning"] {
   border-color: rgba(10, 143, 97, 0.22);
   background: rgba(219, 250, 237, 0.78);
   color: #08734e;
+}
+
+.arcpass-payer-actions i[data-segment="at-risk"] {
+  border-color: rgba(180, 106, 0, 0.22);
+  background: rgba(255, 236, 191, 0.8);
+  color: #8b5200;
 }
 
 .arcpass-error,
@@ -1784,7 +1807,8 @@ button:disabled {
 
   .arcpass-form-grid-four,
   .arcpass-hero-panel-grid,
-  .arcpass-ops-summary {
+  .arcpass-ops-summary,
+  .arcpass-payer-insights {
     grid-template-columns: 1fr;
   }
 
@@ -1829,6 +1853,8 @@ button:disabled {
 
   .arcpass-payer-volumes {
     width: 100%;
+    align-items: flex-start;
+    flex-direction: column;
     justify-content: flex-start;
   }
 

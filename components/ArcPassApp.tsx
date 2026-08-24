@@ -55,7 +55,7 @@ import { isRefundRequest, type RefundRequest, type RefundRequestStatus } from "@
 import { collectionReminders, type CollectionReminder } from "@/lib/collection-reminders";
 import { parseBulkInvoiceDrafts, type BulkInvoiceDraft } from "@/lib/bulk-invoices";
 import { DEFAULT_PAYMENT_LINK_BRANDING, PAYMENT_BRAND_ACCENTS, merchantMonogram, type PaymentBrandAccent, type PaymentLinkBranding } from "@/lib/payment-branding";
-import { buildPayerDirectory, type PayerDirectoryEntry } from "@/lib/payer-directory";
+import { buildPayerDirectory, type PayerDirectoryEntry, type PayerSegment } from "@/lib/payer-directory";
 
 const WORKSPACE_TABS = [
   { id: "dashboard", label: "Dashboard" },
@@ -1341,13 +1341,22 @@ function ReceiptsTab({
 
 function PayerDirectoryPanel({ receiptHistory }: { receiptHistory: SavedReceipt[] }) {
   const [copiedPayer, setCopiedPayer] = useState<Address | null>(null);
+  const [payerSegment, setPayerSegment] = useState<"all" | PayerSegment>("all");
   const [payerQuery, setPayerQuery] = useState("");
   const directory = useMemo(() => buildPayerDirectory(receiptHistory), [receiptHistory]);
+  const segmentCounts = useMemo(() => ({
+    "at-risk": directory.filter((entry) => entry.segment === "at-risk").length,
+    new: directory.filter((entry) => entry.segment === "new").length,
+    returning: directory.filter((entry) => entry.segment === "returning").length,
+  }), [directory]);
   const filteredDirectory = useMemo(() => {
     const query = payerQuery.trim().toLowerCase();
-    if (!query) return directory;
-    return directory.filter((entry) => entry.payer.toLowerCase().includes(query));
-  }, [directory, payerQuery]);
+    return directory.filter((entry) => {
+      const matchesQuery = !query || entry.payer.toLowerCase().includes(query);
+      const matchesSegment = payerSegment === "all" || entry.segment === payerSegment;
+      return matchesQuery && matchesSegment;
+    });
+  }, [directory, payerQuery, payerSegment]);
 
   async function copyPayer(entry: PayerDirectoryEntry) {
     await window.navigator.clipboard.writeText(entry.payer);
@@ -1365,6 +1374,23 @@ function PayerDirectoryPanel({ receiptHistory }: { receiptHistory: SavedReceipt[
         <span>{directory.length} verified wallets</span>
       </div>
       <p className="arcpass-muted">Built only from verified Arc payments. ArcPass groups wallet activity without inferring a payer&apos;s real-world identity.</p>
+      <div className="arcpass-payer-insights" aria-label="Payer segment summary">
+        <MetricPill label="New" value={String(segmentCounts.new)} />
+        <MetricPill label="Returning" value={String(segmentCounts.returning)} />
+        <MetricPill label="At risk · 30d" value={String(segmentCounts["at-risk"])} />
+      </div>
+      <div className="arcpass-segmented-control arcpass-payer-segments" role="tablist" aria-label="Filter payer segment">
+        {([
+          ["all", "All", directory.length],
+          ["new", "New", segmentCounts.new],
+          ["returning", "Returning", segmentCounts.returning],
+          ["at-risk", "At risk", segmentCounts["at-risk"]],
+        ] as const).map(([id, label, count]) => (
+          <button key={id} type="button" role="tab" aria-selected={payerSegment === id} onClick={() => setPayerSegment(id)}>
+            {label} <span>{count}</span>
+          </button>
+        ))}
+      </div>
       <label className="arcpass-search-field arcpass-search-field-full">
         <span>Search payer wallets</span>
         <input
@@ -1382,15 +1408,16 @@ function PayerDirectoryPanel({ receiptHistory }: { receiptHistory: SavedReceipt[
                 <span aria-hidden="true">{entry.payer.slice(2, 4).toUpperCase()}</span>
                 <div>
                   <strong>{shortAddress(entry.payer)}</strong>
-                  <small>Last paid {new Date(entry.lastPaid).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}</small>
+                  <small>Last paid {new Date(entry.lastPaid).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })} · {entry.relationshipDays}d relationship</small>
                 </div>
               </div>
               <div className="arcpass-payer-volumes" aria-label="Verified payment volume">
                 {entry.totals.USDC > 0 ? <span><b>{formatRevenueAmount(entry.totals.USDC)}</b> USDC</span> : null}
                 {entry.totals.EURC > 0 ? <span><b>{formatRevenueAmount(entry.totals.EURC)}</b> EURC</span> : null}
+                <small>{entry.preferredToken ? `Prefers ${entry.preferredToken} · ${formatRevenueAmount(entry.averages[entry.preferredToken])} avg` : "Mixed settlement preference"}</small>
               </div>
               <div className="arcpass-payer-actions">
-                <i data-repeat={entry.paymentCount > 1}>{entry.paymentCount > 1 ? `Returning · ${entry.paymentCount} payments` : "New · 1 payment"}</i>
+                <i data-segment={entry.segment}>{entry.segment === "at-risk" ? `At risk · ${entry.daysSinceLastPayment}d` : entry.segment === "returning" ? `Returning · ${entry.paymentCount} payments` : "New · 1 payment"}</i>
                 <button type="button" className="arcpass-ghost-button" onClick={() => void copyPayer(entry)}>
                   {copiedPayer?.toLowerCase() === entry.payer.toLowerCase() ? "Copied" : "Copy wallet"}
                 </button>
