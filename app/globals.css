@@ -2062,3 +2062,97 @@ button:disabled {
     text-align: left;
   }
 }
+
+.arcpass-intents-stack { display: grid; gap: 18px; }
+.arcpass-payment-terms { background: color-mix(in srgb, var(--color-primary-soft) 30%, var(--color-surface)); border: 1px solid color-mix(in srgb, var(--color-primary) 15%, var(--color-outline-variant)); border-radius: 14px; display: grid; gap: 16px; margin: 18px 0; padding: 18px; }
+.arcpass-payment-terms-heading { align-items: flex-start; display: flex; gap: 18px; justify-content: space-between; }
+.arcpass-payment-terms-heading h3 { color: var(--color-on-surface); font-size: 1rem; margin: 3px 0 5px; }
+.arcpass-payment-terms-heading p:last-child { color: var(--color-on-surface-variant); font-size: 0.72rem; line-height: 1.55; margin: 0; max-width: 660px; }
+.arcpass-payment-terms-toggle { background: color-mix(in srgb, var(--color-surface-high) 72%, transparent); border: 1px solid var(--color-outline-variant); border-radius: 10px; display: flex; flex-shrink: 0; gap: 3px; padding: 4px; }
+.arcpass-payment-terms-toggle button { background: transparent; border: 0; border-radius: 7px; color: var(--color-on-surface-variant); cursor: pointer; font-size: 0.7rem; font-weight: 850; min-height: 34px; padding: 0 12px; }
+.arcpass-payment-terms-toggle button[aria-selected="true"] { background: var(--color-on-surface); color: var(--color-surface); }
+.arcpass-installment-config { display: grid; gap: 14px; }
+.arcpass-installment-controls { display: grid; gap: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.arcpass-installment-controls > div:last-child { background: var(--color-surface); border: 1px solid var(--color-outline-variant); border-radius: 10px; display: grid; gap: 4px; padding: 10px 12px; }
+.arcpass-installment-controls > div:last-child span, .arcpass-installment-controls > div:last-child small { color: var(--color-on-surface-variant); font-size: 0.63rem; }
+.arcpass-installment-controls > div:last-child strong { color: var(--color-on-surface); font-family: var(--font-mono); font-size: 0.9rem; }
+.arcpass-installment-preview { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.arcpass-installment-preview article { align-items: center; background: color-mix(in srgb, var(--color-surface) 76%, transparent); border: 1px solid var(--color-outline-variant); border-radius: 10px; display: flex; gap: 9px; min-width: 0; padding: 10px; }
+.arcpass-installment-preview article > span { align-items: center; background: var(--color-primary-soft); border-radius: 50%; color: var(--color-primary); display: flex; flex: 0 0 25px; font-size: 0.67rem; font-weight: 900; height: 25px; justify-content: center; }
+.arcpass-installment-preview strong, .arcpass-installment-preview small { display: block; }
+.arcpass-installment-preview strong { color: var(--color-on-surface); font-family: var(--font-mono); font-size: 0.72rem; }
+.arcpass-installment-preview small { color: var(--color-on-surface-variant); font-size: 0.6rem; margin-top: 3px; }
+.arcpass-checkout-installment-summary { border-top: 1px solid var(--color-outline-variant); display: grid; gap: 7px; margin-top: 13px; padding-top: 12px; }
+.arcpass-checkout-installment-summary span { color: var(--color-on-surface-variant); display: flex; font-size: 0.68rem; gap: 12px; justify-content: space-between; }
+.arcpass-checkout-installment-summary b { color: var(--color-on-surface); font-weight: 850; }
+
+.arcpass-plan-center { display: grid; gap: 18px; }
+.arcpass-plan-heading { align-items: flex-start; display: flex; gap: 20px; justify-content: space-between; }
+.arcpass-plan-heading h3 { color: var(--color-on-surface); font-size: 1.2rem; margin: 5px 0 7px; }
+.arcpass-plan-heading p:not(.arcpass-panel-label) { color: var(--color-on-surface-variant); font-size: 0.74rem; line-height: 1.55; margin: 0; max-width: 720px; }
+.arcpass-plan-heading .arcpass-dark-button { flex-shrink: 0; }
+.arcpass-plan-metrics { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.arcpass-plan-metrics > div { background: color-mix(in srgb, var(--color-surface-high) 72%, var(--color-surface)); border: 1px solid var(--color-outline-variant); border-radius: 11px; display: grid; gap: 5px; padding: 13px; }
+.arcpass-plan-metrics > div[data-tone="caution"] { background: var(--color-caution-soft); border-color: color-mix(in srgb, var(--color-caution) 24%, var(--color-outline-variant)); }
+.arcpass-plan-metrics > div[data-tone="success"] { background: var(--color-success-soft); border-color: color-mix(in srgb, var(--color-success) 22%, var(--color-outline-variant)); }
+.arcpass-plan-metrics span, .arcpass-plan-metrics small { color: var(--color-on-surface-variant); font-size: 0.62rem; }
+.arcpass-plan-metrics strong { color: var(--color-on-surface); font-family: var(--font-mono); font-size: 1.12rem; }
+.arcpass-plan-workbench { display: grid; gap: 12px; grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.2fr); }
+.arcpass-plan-list { display: grid; gap: 8px; }
+.arcpass-plan-list > button { background: color-mix(in srgb, var(--color-surface-low) 72%, transparent); border: 1px solid var(--color-outline-variant); border-radius: 11px; color: var(--color-on-surface); cursor: pointer; display: grid; gap: 8px; padding: 13px; text-align: left; }
+.arcpass-plan-list > button[aria-pressed="true"] { background: color-mix(in srgb, var(--color-primary-soft) 46%, var(--color-surface)); border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-outline-variant)); }
+.arcpass-plan-list-head { align-items: center; display: flex; gap: 8px; justify-content: space-between; }
+.arcpass-plan-list-head strong { font-family: var(--font-mono); font-size: 0.72rem; overflow-wrap: anywhere; }
+.arcpass-plan-list > button > span:nth-child(2), .arcpass-plan-list > button > small { color: var(--color-on-surface-variant); font-size: 0.64rem; }
+.arcpass-plan-progress { background: var(--color-outline-variant); border-radius: 999px; height: 6px; overflow: hidden; }
+.arcpass-plan-progress i { background: var(--color-success); display: block; height: 100%; }
+.arcpass-plan-list-head i, .arcpass-plan-detail-head > i { border: 1px solid var(--color-outline-variant); border-radius: 999px; color: var(--color-on-surface-variant); font-size: 0.6rem; font-style: normal; font-weight: 900; padding: 5px 7px; white-space: nowrap; }
+.arcpass-plan-list-head i[data-status="overdue"], .arcpass-plan-detail-head > i[data-status="overdue"] { background: var(--color-danger-soft); border-color: color-mix(in srgb, var(--color-danger) 24%, var(--color-outline-variant)); color: var(--color-danger); }
+.arcpass-plan-list-head i[data-status="in-progress"], .arcpass-plan-detail-head > i[data-status="in-progress"] { background: var(--color-caution-soft); border-color: color-mix(in srgb, var(--color-caution) 24%, var(--color-outline-variant)); color: var(--color-caution); }
+.arcpass-plan-list-head i[data-status="completed"], .arcpass-plan-detail-head > i[data-status="completed"] { background: var(--color-success-soft); border-color: color-mix(in srgb, var(--color-success) 22%, var(--color-outline-variant)); color: var(--color-success); }
+.arcpass-plan-detail { background: color-mix(in srgb, var(--color-surface-high) 58%, var(--color-surface)); border: 1px solid var(--color-outline-variant); border-radius: 12px; display: grid; gap: 13px; padding: 15px; }
+.arcpass-plan-detail-head { align-items: flex-start; display: flex; gap: 12px; justify-content: space-between; }
+.arcpass-plan-detail-head span, .arcpass-plan-detail-head strong { display: block; }
+.arcpass-plan-detail-head span { color: var(--color-on-surface-variant); font-size: 0.62rem; font-weight: 800; }
+.arcpass-plan-detail-head strong { color: var(--color-on-surface); font-family: var(--font-mono); font-size: 0.78rem; margin-top: 4px; overflow-wrap: anywhere; }
+.arcpass-plan-balance { display: grid; gap: 8px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.arcpass-plan-balance > div { background: var(--color-surface); border: 1px solid var(--color-outline-variant); border-radius: 9px; display: grid; gap: 5px; padding: 10px; }
+.arcpass-plan-balance span { color: var(--color-on-surface-variant); font-size: 0.61rem; }
+.arcpass-plan-balance strong { color: var(--color-on-surface); font-family: var(--font-mono); font-size: 0.73rem; }
+.arcpass-plan-installments { display: grid; gap: 7px; }
+.arcpass-plan-installments article { align-items: center; background: color-mix(in srgb, var(--color-surface) 70%, transparent); border: 1px solid var(--color-outline-variant); border-radius: 9px; display: grid; gap: 9px; grid-template-columns: 25px minmax(0, 1fr) auto; padding: 9px; }
+.arcpass-plan-installments article > span { align-items: center; background: var(--color-primary-soft); border-radius: 50%; color: var(--color-primary); display: flex; font-size: 0.65rem; font-weight: 900; height: 25px; justify-content: center; }
+.arcpass-plan-installments article[data-settled="true"] > span { background: var(--color-success-soft); color: var(--color-success); }
+.arcpass-plan-installments strong, .arcpass-plan-installments small { display: block; }
+.arcpass-plan-installments strong { color: var(--color-on-surface); font-size: 0.68rem; }
+.arcpass-plan-installments small { color: var(--color-on-surface-variant); font-size: 0.59rem; margin-top: 3px; }
+.arcpass-plan-installments article > div:last-child { text-align: right; }
+.arcpass-plan-installments a { color: var(--color-primary); display: inline-block; font-size: 0.61rem; font-weight: 850; margin-top: 3px; text-decoration: none; }
+.arcpass-plan-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.arcpass-plan-actions a { align-items: center; display: inline-flex; justify-content: center; text-decoration: none; }
+.arcpass-plan-empty { align-items: center; background: color-mix(in srgb, var(--color-surface-low) 74%, transparent); border: 1px dashed var(--color-outline-variant); border-radius: 11px; display: grid; gap: 13px; grid-template-columns: 38px minmax(0, 1fr) auto; padding: 16px; }
+.arcpass-plan-empty > span { align-items: center; background: var(--color-primary-soft); border-radius: 50%; color: var(--color-primary); display: flex; font-size: 1rem; height: 38px; justify-content: center; }
+.arcpass-plan-empty strong { color: var(--color-on-surface); font-size: 0.82rem; }
+.arcpass-plan-empty p, .arcpass-plan-disclosure { color: var(--color-on-surface-variant); font-size: 0.66rem; line-height: 1.5; margin: 4px 0 0; }
+.arcpass-plan-disclosure { border-top: 1px solid var(--color-outline-variant); margin: 0; padding-top: 12px; }
+
+@media (max-width: 980px) {
+  .arcpass-plan-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .arcpass-plan-workbench { grid-template-columns: 1fr; }
+  .arcpass-installment-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .arcpass-installment-controls > div:last-child { grid-column: span 2; }
+}
+
+@media (max-width: 620px) {
+  .arcpass-payment-terms-heading, .arcpass-plan-heading { align-items: stretch; flex-direction: column; }
+  .arcpass-payment-terms-toggle { width: 100%; }
+  .arcpass-payment-terms-toggle button { flex: 1; }
+  .arcpass-installment-controls, .arcpass-plan-metrics, .arcpass-plan-balance { grid-template-columns: 1fr; }
+  .arcpass-installment-controls > div:last-child { grid-column: span 1; }
+  .arcpass-plan-detail-head { align-items: flex-start; flex-direction: column; }
+  .arcpass-plan-installments article { align-items: start; grid-template-columns: 25px minmax(0, 1fr); }
+  .arcpass-plan-installments article > div:last-child { grid-column: 2; text-align: left; }
+  .arcpass-plan-actions { align-items: stretch; flex-direction: column; }
+  .arcpass-plan-actions .arcpass-dark-button, .arcpass-plan-actions .arcpass-ghost-button { width: 100%; }
+  .arcpass-plan-empty { align-items: start; grid-template-columns: 1fr; }
+}

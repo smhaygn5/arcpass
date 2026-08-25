@@ -96,6 +96,8 @@ export function PublicPaymentReceipt({ invoice, payload }: { invoice: ArcPassInv
                 <ReceiptDetail label="Buyer wallet" value={shortAddress(receipt.payer)} />
                 <ReceiptDetail label="Merchant wallet" value={shortAddress(receipt.merchant)} />
                 <ReceiptDetail label="Network" value="Arc Testnet" />
+                {invoice.installment ? <ReceiptDetail label="Installment" value={`${invoice.installment.installmentNumber}/${invoice.installment.installmentCount}`} /> : null}
+                {invoice.installment ? <ReceiptDetail label="Plan total" value={`${invoice.installment.planTotal} ${invoice.token}`} /> : null}
               </div>
               <div className="arcpass-receipt-transaction"><span>Transaction hash</span><a href={receipt.explorerUrl} target="_blank" rel="noreferrer">{shortAddress(receipt.txHash)}</a><small>Block {receipt.blockNumber} · Verified by ArcPass registry</small></div>
               <div className="arcpass-receipt-actions"><button type="button" onClick={() => window.print()} className="arcpass-ghost-button">Print receipt</button><button type="button" onClick={shareReceipt} className="arcpass-dark-button">Share receipt</button></div>

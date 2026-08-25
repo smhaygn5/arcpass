@@ -42,6 +42,7 @@ import { publicPaymentReceiptLink } from "@/lib/payment-receipt";
 import { checkoutRecoveryPlan } from "@/lib/checkout-recovery";
 import { DEFAULT_PAYMENT_LINK_BRANDING, PAYMENT_BRAND_ACCENTS, merchantMonogram } from "@/lib/payment-branding";
 import { CrossChainCheckout } from "@/components/CrossChainCheckout";
+import { installmentCadenceLabel } from "@/lib/installments";
 
 const erc20Abi = [
   {
@@ -108,6 +109,7 @@ export function ArcPaymentPanel({
   const amountRaw = useMemo(() => invoiceAmountRaw(invoice), [invoice]);
   const merchantAddress = invoice.merchant.walletAddress;
   const token = ARCPASS_TOKENS[invoice.token];
+  const installment = invoice.installment;
   const score = trustScore(invoice.merchant);
   const expired = invoiceExpired(invoice);
   const hasEnoughBalance = balance == null ? null : balance >= amountRaw;
@@ -389,16 +391,18 @@ export function ArcPaymentPanel({
               <p className="arcpass-eyebrow">Verified invoice</p>
               <h1>{invoice.description}</h1>
               <p>
-                Pay {invoice.amount} {invoice.token} to a merchant passport linked with{" "}
-                {invoice.merchant.domain}. The invoice hash below locks the amount, token, merchant, and expiry.
+                {installment
+                  ? `Pay installment ${installment.installmentNumber} of ${installment.installmentCount} to a merchant passport linked with ${invoice.merchant.domain}. This link locks only its exact share of the ${installment.planTotal} ${invoice.token} plan.`
+                  : `Pay ${invoice.amount} ${invoice.token} to a merchant passport linked with ${invoice.merchant.domain}. The invoice hash below locks the amount, token, merchant, and expiry.`}
               </p>
             </div>
 
             <aside className="arcpass-checkout-paybox">
-              <p className="arcpass-panel-label">Amount due</p>
+              <p className="arcpass-panel-label">{installment ? `Installment ${installment.installmentNumber}/${installment.installmentCount} due` : "Amount due"}</p>
               <strong>
                 {invoice.amount} {invoice.token}
               </strong>
+              {installment ? <div className="arcpass-checkout-installment-summary"><span>Plan total <b>{installment.planTotal} {invoice.token}</b></span><span>Cadence <b>{installmentCadenceLabel(installment.cadence)}</b></span></div> : null}
               <div className="arcpass-pay-actions">
                 <button
                   type="button"
@@ -473,6 +477,8 @@ export function ArcPaymentPanel({
                 }
               />
               <Detail label="Token" value={invoice.token} />
+              {installment ? <Detail label="Payment terms" value={`${installment.installmentNumber} of ${installment.installmentCount} · ${installmentCadenceLabel(installment.cadence)}`} /> : null}
+              {installment ? <Detail label="Plan ID" value={installment.planId} /> : null}
             </div>
           </div>
 
@@ -554,7 +560,7 @@ export function ArcPaymentPanel({
         <div className="arcpass-panel">
           <p className="arcpass-panel-label">Payment state</p>
           <p className="arcpass-muted">
-            Payment sends exactly {formatInvoiceAmount(amountRaw, invoice.token)} {invoice.token} to the verified merchant wallet.
+            Payment sends exactly {formatInvoiceAmount(amountRaw, invoice.token)} {invoice.token} to the verified merchant wallet{installment ? ` and settles only installment ${installment.installmentNumber} of ${installment.installmentCount}` : ""}.
           </p>
 
           {payer ? (

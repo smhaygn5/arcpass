@@ -14,6 +14,7 @@ import {
   trustLabel,
   trustScore,
   type ArcPassTokenSymbol,
+  type InstallmentCadence,
   type PassportStatus,
   type RefundPolicy,
 } from "@/lib/arcpass";
@@ -57,6 +58,8 @@ import { parseBulkInvoiceDrafts, type BulkInvoiceDraft } from "@/lib/bulk-invoic
 import { DEFAULT_PAYMENT_LINK_BRANDING, PAYMENT_BRAND_ACCENTS, merchantMonogram, type PaymentBrandAccent, type PaymentLinkBranding } from "@/lib/payment-branding";
 import { buildPayerDirectory, type PayerDirectoryEntry, type PayerSegment } from "@/lib/payer-directory";
 import { PaymentIntentCenter } from "@/components/PaymentIntentCenter";
+import { InstallmentPlanCenter } from "@/components/InstallmentPlanCenter";
+import { buildInstallmentSchedule, type InstallmentScheduleItem } from "@/lib/installments";
 
 const WORKSPACE_TABS = [
   { id: "dashboard", label: "Dashboard" },
@@ -358,6 +361,59 @@ export function ArcPassApp() {
     }
   }
 
+  async function createInstallmentPaymentLinks({
+    branding,
+    cadence,
+    installmentCount,
+  }: {
+    branding: PaymentLinkBranding;
+    cadence: InstallmentCadence;
+    installmentCount: number;
+  }) {
+    setError(null);
+    setServerInvoiceError(null);
+
+    try {
+      if (!walletAddress) throw new Error("Connect a merchant wallet before creating an installment plan.");
+      const merchant = createMerchantPassport({ businessName, domain, refundPolicy, status: passportStatus, walletAddress });
+      const schedule = buildInstallmentSchedule({ cadence, firstDueAt: new Date(expiresAt).toISOString(), installmentCount, token, totalAmount: amount });
+      const batch = schedule.map((item) => {
+        const suffix = ` · Installment ${item.installmentNumber}/${item.installmentCount}`;
+        const invoice = createInvoice({
+          amount: item.amount,
+          branding,
+          description: `${description.trim().slice(0, 280 - suffix.length)}${suffix}`,
+          expiresAt: item.dueAt,
+          installment: installmentMetadata(item),
+          merchant,
+          token,
+        });
+        return createSavedInvoice({ invoice, origin: window.location.origin });
+      });
+      const res = await fetch("/api/invoices", {
+        body: JSON.stringify({ payloads: batch.map((item) => item.payload) }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      });
+      const body = (await res.json().catch(() => null)) as { error?: string; invoices?: unknown[]; saved?: boolean } | null;
+      const serverInvoices = (body?.invoices ?? []).filter(isSavedInvoice);
+      if (!res.ok || body?.saved !== true || serverInvoices.length !== batch.length) {
+        throw new Error(body?.error || "The installment plan could not be registered in full.");
+      }
+
+      for (const item of serverInvoices) saveInvoiceLocally(item);
+      setInvoiceHistory((current) => mergeSavedInvoices([serverInvoices, loadSavedInvoices(), current]));
+      setCreatedLink(serverInvoices[0].link);
+      setCreatedInvoiceId(serverInvoices[0].invoice.invoiceId);
+      setActiveTab("intents");
+      return serverInvoices.length;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "The installment plan could not be created.";
+      setError(message);
+      throw new Error(message);
+    }
+  }
+
   async function createBulkPaymentLinks(drafts: BulkInvoiceDraft[], branding: PaymentLinkBranding) {
     setError(null);
     setServerInvoiceError(null);
@@ -527,6 +583,7 @@ export function ArcPassApp() {
             amount={amount}
             businessName={businessName}
             createBulkPaymentLinks={createBulkPaymentLinks}
+            createInstallmentPaymentLinks={createInstallmentPaymentLinks}
             createPaymentLink={createPaymentLink}
             description={description}
             expiresAt={expiresAt}
@@ -552,11 +609,18 @@ export function ArcPassApp() {
           />
         ) : null}
         {activeTab === "intents" ? (
-          <PaymentIntentCenter
-            invoiceHistory={invoiceHistory}
-            onCreateInvoice={() => setActiveTab("invoice")}
-            receiptHistory={receiptHistory}
-          />
+          <div className="arcpass-intents-stack">
+            <PaymentIntentCenter
+              invoiceHistory={invoiceHistory}
+              onCreateInvoice={() => setActiveTab("invoice")}
+              receiptHistory={receiptHistory}
+            />
+            <InstallmentPlanCenter
+              invoiceHistory={invoiceHistory}
+              onCreatePlan={() => setActiveTab("invoice")}
+              receiptHistory={receiptHistory}
+            />
+          </div>
         ) : null}
         {activeTab === "receipts" ? (
           <ReceiptsTab
@@ -860,6 +924,7 @@ function InvoiceTab({
   amount,
   businessName,
   createBulkPaymentLinks,
+  createInstallmentPaymentLinks,
   createPaymentLink,
   description,
   expiresAt,
@@ -872,6 +937,7 @@ function InvoiceTab({
   amount: string;
   businessName: string;
   createBulkPaymentLinks: (drafts: BulkInvoiceDraft[], branding: PaymentLinkBranding) => Promise<number>;
+  createInstallmentPaymentLinks: (input: { branding: PaymentLinkBranding; cadence: InstallmentCadence; installmentCount: number }) => Promise<number>;
   createPaymentLink: (branding: PaymentLinkBranding) => Promise<void>;
   description: string;
   expiresAt: string;
@@ -887,11 +953,25 @@ function InvoiceTab({
   const [bulkError, setBulkError] = useState<string | null>(null);
   const [bulkSuccess, setBulkSuccess] = useState<string | null>(null);
   const [isCreatingBulk, setIsCreatingBulk] = useState(false);
+  const [isCreatingPlan, setIsCreatingPlan] = useState(false);
   const [brandAccent, setBrandAccent] = useState<PaymentBrandAccent>(DEFAULT_PAYMENT_LINK_BRANDING.accent);
   const [brandMessage, setBrandMessage] = useState("");
+  const [installmentCadence, setInstallmentCadence] = useState<InstallmentCadence>("monthly");
+  const [installmentCount, setInstallmentCount] = useState(3);
+  const [paymentTerms, setPaymentTerms] = useState<"installments" | "one-time">("one-time");
+  const [planError, setPlanError] = useState<string | null>(null);
+  const [planSuccess, setPlanSuccess] = useState<string | null>(null);
   const [showMonogram, setShowMonogram] = useState(true);
   const bulkPreview = useMemo(() => parseBulkInvoiceDrafts(bulkInput), [bulkInput]);
   const branding = useMemo<PaymentLinkBranding>(() => ({ accent: brandAccent, message: brandMessage.trim(), showMonogram }), [brandAccent, brandMessage, showMonogram]);
+  const installmentPreview = useMemo(() => {
+    if (paymentTerms !== "installments") return [];
+    try {
+      return buildInstallmentSchedule({ cadence: installmentCadence, firstDueAt: new Date(expiresAt).toISOString(), installmentCount, planId: "plan_preview", token, totalAmount: amount });
+    } catch {
+      return [];
+    }
+  }, [amount, expiresAt, installmentCadence, installmentCount, paymentTerms, token]);
 
   function applyTemplate(template: InvoiceTemplate) {
     setAmount(template.amount);
@@ -933,6 +1013,24 @@ function InvoiceTab({
     }
   }
 
+  async function createPlan() {
+    setPlanError(null);
+    setPlanSuccess(null);
+    if (installmentPreview.length !== installmentCount) {
+      setPlanError("Enter a valid total, first due date, and installment count before creating the plan.");
+      return;
+    }
+    setIsCreatingPlan(true);
+    try {
+      const count = await createInstallmentPaymentLinks({ branding, cadence: installmentCadence, installmentCount });
+      setPlanSuccess(`${count} locked installment links registered under one plan.`);
+    } catch (err) {
+      setPlanError(err instanceof Error ? err.message : "The installment plan could not be created.");
+    } finally {
+      setIsCreatingPlan(false);
+    }
+  }
+
   return (
     <div className="arcpass-panel">
       <p className="arcpass-panel-label">Invoice builder</p>
@@ -966,10 +1064,45 @@ function InvoiceTab({
             <option value="EURC">EURC</option>
           </select>
         </Field>
-        <Field label="Expires at">
+        <Field label={paymentTerms === "installments" ? "First installment due" : "Expires at"}>
           <input value={expiresAt} type="datetime-local" onChange={(event) => setExpiresAt(event.target.value)} className={INPUT_CLASS} />
         </Field>
       </div>
+      <section className="arcpass-payment-terms">
+        <div className="arcpass-payment-terms-heading">
+          <div><p className="arcpass-panel-label">Payment terms</p><h3>Collect once or split the total into locked installments.</h3><p>Installments are separate server-registered invoices, so every partial payment remains exact and independently verifiable.</p></div>
+          <div className="arcpass-payment-terms-toggle" role="tablist" aria-label="Invoice payment terms">
+            <button type="button" role="tab" aria-selected={paymentTerms === "one-time"} onClick={() => { setPaymentTerms("one-time"); setPlanError(null); setPlanSuccess(null); }}>One-time</button>
+            <button type="button" role="tab" aria-selected={paymentTerms === "installments"} onClick={() => { setPaymentTerms("installments"); setPlanError(null); setPlanSuccess(null); }}>Installments</button>
+          </div>
+        </div>
+        {paymentTerms === "installments" ? (
+          <div className="arcpass-installment-config">
+            <div className="arcpass-installment-controls">
+              <Field label="Number of payments">
+                <select aria-label="Number of payments" value={installmentCount} onChange={(event) => setInstallmentCount(Number(event.target.value))} className={INPUT_CLASS}>
+                  {[2, 3, 4, 5, 6].map((count) => <option key={count} value={count}>{count} installments</option>)}
+                </select>
+              </Field>
+              <Field label="Cadence">
+                <select aria-label="Cadence" value={installmentCadence} onChange={(event) => setInstallmentCadence(event.target.value as InstallmentCadence)} className={INPUT_CLASS}>
+                  <option value="weekly">Weekly</option>
+                  <option value="biweekly">Every 2 weeks</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </Field>
+              <div><span>Plan total</span><strong>{amount || "0"} {token}</strong><small>The amount above is split without rounding loss.</small></div>
+            </div>
+            {installmentPreview.length ? (
+              <div className="arcpass-installment-preview">
+                {installmentPreview.map((item) => (
+                  <article key={item.installmentNumber}><span>{item.installmentNumber}</span><div><strong>{item.amount} {token}</strong><small>Due {new Date(item.dueAt).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}</small></div></article>
+                ))}
+              </div>
+            ) : <p className="arcpass-error">The schedule preview will appear after the total and first due date are valid.</p>}
+          </div>
+        ) : null}
+      </section>
       <div className="arcpass-template-save">
         <input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Template name (optional)" className={INPUT_CLASS} />
         <button type="button" onClick={saveCurrentTemplate} className="arcpass-ghost-button">Save current as template</button>
@@ -978,9 +1111,17 @@ function InvoiceTab({
         <div className="arcpass-branding-heading"><div><p className="arcpass-panel-label">Payment link branding</p><h3>Make the checkout recognizable.</h3><p>Brand styling stays inside ArcPass’s fixed, accessible checkout structure.</p></div><div className="arcpass-brand-preview" style={{ "--brand-preview": PAYMENT_BRAND_ACCENTS[brandAccent].color, "--brand-preview-soft": PAYMENT_BRAND_ACCENTS[brandAccent].soft } as CSSProperties}>{showMonogram ? <span>{merchantMonogram(businessName)}</span> : null}<div><strong>{businessName}</strong><small>{brandMessage.trim() || "Verified payment via ArcPass"}</small></div></div></div>
         <div className="arcpass-branding-controls"><fieldset><legend>Accent</legend><div>{Object.entries(PAYMENT_BRAND_ACCENTS).map(([id, option]) => <label key={id}><input type="radio" name="payment-brand-accent" value={id} checked={brandAccent === id} onChange={() => setBrandAccent(id as PaymentBrandAccent)} /><span style={{ background: option.color }} /><em>{option.label}</em></label>)}</div></fieldset><label className="arcpass-brand-message"><span>Checkout message</span><input value={brandMessage} onChange={(event) => setBrandMessage(event.target.value)} maxLength={120} placeholder="A short note for your customer" className={INPUT_CLASS} /><small>{brandMessage.trim().length}/120</small></label><label className="arcpass-brand-toggle"><input type="checkbox" checked={showMonogram} onChange={(event) => setShowMonogram(event.target.checked)} /><span>Show merchant monogram</span></label></div>
       </section>
-      <button type="button" onClick={() => void createPaymentLink(branding)} className="arcpass-dark-button arcpass-inline-action">
-        Generate verified payment link
-      </button>
+      {paymentTerms === "installments" ? (
+        <button type="button" onClick={() => void createPlan()} disabled={isCreatingPlan || installmentPreview.length !== installmentCount} className="arcpass-dark-button arcpass-inline-action">
+          {isCreatingPlan ? "Registering installment plan" : `Create ${installmentCount} verified installment links`}
+        </button>
+      ) : (
+        <button type="button" onClick={() => void createPaymentLink(branding)} className="arcpass-dark-button arcpass-inline-action">
+          Generate verified payment link
+        </button>
+      )}
+      {planError ? <p className="arcpass-error" role="alert">{planError}</p> : null}
+      {planSuccess ? <p className="arcpass-success">{planSuccess}</p> : null}
       <section className="arcpass-bulk-builder">
         <div><p className="arcpass-panel-label">Bulk invoice creator</p><h3>Create up to 10 verified links at once.</h3><p>Enter one invoice per line using: Description | Amount | Token | Expiry hours</p></div>
         <textarea value={bulkInput} onChange={(event) => { setBulkInput(event.target.value); setBulkError(null); setBulkSuccess(null); }} placeholder={"Design delivery | 250 | USDC | 72\nMonthly support | 99 | EURC | 168"} rows={5} />
@@ -1885,6 +2026,9 @@ function exportInvoiceReport(items: SavedInvoice[], receiptHistory: SavedReceipt
       item.invoice.merchant.businessName,
       item.invoice.merchant.domain,
       item.invoice.merchant.walletAddress,
+      item.invoice.installment?.planId ?? "",
+      item.invoice.installment ? `${item.invoice.installment.installmentNumber}/${item.invoice.installment.installmentCount}` : "",
+      item.invoice.installment?.planTotal ?? "",
       item.link,
       receipt?.txHash ?? "",
     ];
@@ -1902,6 +2046,9 @@ function exportInvoiceReport(items: SavedInvoice[], receiptHistory: SavedReceipt
       "Merchant",
       "Domain",
       "Merchant Wallet",
+      "Plan ID",
+      "Installment",
+      "Plan Total",
       "Checkout Link",
       "Receipt Transaction",
     ],
@@ -1990,4 +2137,14 @@ function defaultExpiryInput() {
   const date = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const offsetMs = date.getTimezoneOffset() * 60 * 1000;
   return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
+function installmentMetadata(item: InstallmentScheduleItem) {
+  return {
+    cadence: item.cadence,
+    installmentCount: item.installmentCount,
+    installmentNumber: item.installmentNumber,
+    planId: item.planId,
+    planTotal: item.planTotal,
+  };
 }

@@ -20,8 +20,17 @@ const MAX_DOMAIN_LENGTH = 253;
 const MAX_ID_LENGTH = 80;
 
 export type ArcPassTokenSymbol = "USDC" | "EURC";
+export type InstallmentCadence = "weekly" | "biweekly" | "monthly";
 export type PassportStatus = "verified" | "pending" | "unverified";
 export type RefundPolicy = "none" | "merchant-refund" | "escrow-window";
+
+export type InvoiceInstallment = {
+  cadence: InstallmentCadence;
+  installmentCount: number;
+  installmentNumber: number;
+  planId: string;
+  planTotal: string;
+};
 
 export type MerchantPassport = {
   businessName: string;
@@ -40,6 +49,7 @@ export type ArcPassInvoice = {
   description: string;
   expiresAt: string;
   invoiceId: string;
+  installment?: InvoiceInstallment;
   merchant: MerchantPassport;
   token: ArcPassTokenSymbol;
   version: typeof ARCPASS_VERSION;
@@ -120,6 +130,7 @@ export function createInvoice(input: {
   branding?: PaymentLinkBranding;
   description: string;
   expiresAt: string;
+  installment?: InvoiceInstallment;
   merchant: MerchantPassport;
   token: ArcPassTokenSymbol;
 }): ArcPassInvoice {
@@ -136,6 +147,11 @@ export function createInvoice(input: {
   }
   const branding = input.branding === undefined ? undefined : normalizePaymentLinkBranding(input.branding);
   if (input.branding !== undefined && !branding) throw new Error("Payment link branding is invalid.");
+  const installment = input.installment === undefined ? undefined : normalizeInvoiceInstallment(input.installment, input.token);
+  if (input.installment !== undefined && !installment) throw new Error("Invoice installment metadata is invalid.");
+  if (installment && invoiceAmountRawValue(input.amount, input.token) > invoiceAmountRawValue(installment.planTotal, input.token)) {
+    throw new Error("Installment amount cannot exceed the plan total.");
+  }
 
   return {
     amount: normalizeAmount(input.amount),
@@ -144,6 +160,7 @@ export function createInvoice(input: {
     description,
     expiresAt: expiresAt.toISOString(),
     invoiceId: createShortId("inv"),
+    ...(installment ? { installment } : {}),
     merchant: input.merchant,
     token: input.token,
     version: ARCPASS_VERSION,
@@ -177,7 +194,10 @@ export function decodeInvoicePayload(payload: string): ArcPassInvoice | null {
     if (!merchant) return null;
     const branding = invoice.branding === undefined ? undefined : normalizePaymentLinkBranding(invoice.branding);
     if (invoice.branding !== undefined && !branding) return null;
+    const installment = invoice.installment === undefined ? undefined : normalizeInvoiceInstallment(invoice.installment, invoice.token);
+    if (invoice.installment !== undefined && !installment) return null;
     assertValidAmount(invoice.amount, invoice.token);
+    if (installment && invoiceAmountRawValue(invoice.amount, invoice.token) > invoiceAmountRawValue(installment.planTotal, invoice.token)) return null;
 
     return {
       amount: normalizeAmount(invoice.amount),
@@ -186,6 +206,7 @@ export function decodeInvoicePayload(payload: string): ArcPassInvoice | null {
       description: invoice.description.trim(),
       expiresAt: new Date(invoice.expiresAt).toISOString(),
       invoiceId: invoice.invoiceId,
+      ...(installment ? { installment } : {}),
       merchant,
       token: invoice.token,
       version: ARCPASS_VERSION,
@@ -336,10 +357,38 @@ function stableInvoiceJson(invoice: ArcPassInvoice) {
     description: invoice.description,
     expiresAt: new Date(invoice.expiresAt).toISOString(),
     invoiceId: invoice.invoiceId,
+    ...(invoice.installment ? { installment: invoice.installment } : {}),
     merchantHash: merchantPassportHash(invoice.merchant),
     token: invoice.token,
     version: invoice.version,
   });
+}
+
+function normalizeInvoiceInstallment(value: Partial<InvoiceInstallment>, token: ArcPassTokenSymbol): InvoiceInstallment | null {
+  if (!value || typeof value !== "object") return null;
+  if (typeof value.planId !== "string" || !/^plan_[a-zA-Z0-9_-]{1,64}$/.test(value.planId)) return null;
+  if (!Number.isInteger(value.installmentCount) || Number(value.installmentCount) < 2 || Number(value.installmentCount) > 10) return null;
+  if (!Number.isInteger(value.installmentNumber) || Number(value.installmentNumber) < 1 || Number(value.installmentNumber) > Number(value.installmentCount)) return null;
+  if (!value.cadence || !["weekly", "biweekly", "monthly"].includes(value.cadence)) return null;
+  if (typeof value.planTotal !== "string") return null;
+
+  try {
+    assertValidAmount(value.planTotal, token);
+  } catch {
+    return null;
+  }
+
+  return {
+    cadence: value.cadence,
+    installmentCount: Number(value.installmentCount),
+    installmentNumber: Number(value.installmentNumber),
+    planId: value.planId,
+    planTotal: normalizeAmount(value.planTotal),
+  };
+}
+
+function invoiceAmountRawValue(amount: string, token: ArcPassTokenSymbol) {
+  return parseUnits(normalizeAmount(amount), ARCPASS_TOKENS[token].decimals);
 }
 
 function stableMerchantJson(passport: MerchantPassport) {

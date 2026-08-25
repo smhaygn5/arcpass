@@ -70,6 +70,8 @@ export function PublicMerchantPassport({
                 <div className="arcpass-detail-row"><span>Merchant wallet</span><strong>{shortAddress(invoice.merchant.walletAddress)}</strong></div>
                 <div className="arcpass-detail-row"><span>Refund policy</span><strong>{invoice.merchant.refundPolicy}</strong></div>
                 <div className="arcpass-detail-row"><span>Current checkout</span><strong>{invoice.amount} {invoice.token}</strong></div>
+                {invoice.installment ? <div className="arcpass-detail-row"><span>Installment</span><strong>{invoice.installment.installmentNumber}/{invoice.installment.installmentCount}</strong></div> : null}
+                {invoice.installment ? <div className="arcpass-detail-row"><span>Plan total</span><strong>{invoice.installment.planTotal} {invoice.token}</strong></div> : null}
               </div>
               <a className="arcpass-link-preview" href={merchantExplorerUrl(invoice.merchant)} rel="noreferrer" target="_blank">View merchant wallet on ArcScan</a>
             </section>
@@ -83,7 +85,7 @@ export function PublicMerchantPassport({
             <section className="arcpass-panel arcpass-public-passport-action">
               <p className="arcpass-panel-label">Verified payment link</p>
               <h3>{invoice.description}</h3>
-              <p className="arcpass-muted">This checkout keeps the amount, token, merchant wallet, and expiry in its invoice lock.</p>
+              <p className="arcpass-muted">This checkout keeps the amount, token, merchant wallet, expiry{invoice.installment ? ", and installment position" : ""} in its invoice lock.</p>
               <a className="arcpass-dark-button" href={`/pay/${payload}`}>Open verified checkout</a>
             </section>
           </>
