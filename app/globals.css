@@ -814,6 +814,45 @@ button:disabled {
 .arcpass-cross-chain-heading > span { background: #edf3ff; border-radius: 999px; color: #1b66ff; font-size: 0.68rem; font-weight: 900; padding: 7px 10px; text-transform: capitalize; white-space: nowrap; }
 .arcpass-cross-chain-heading > span[data-state="complete"] { background: #e2f8ee; color: #087b53; }
 .arcpass-cross-chain-heading > span[data-state="bridging"] { background: #fff1d8; color: #a76910; }
+.arcpass-unified-balance { background: linear-gradient(135deg, color-mix(in srgb, var(--color-surface-high) 86%, transparent), var(--color-surface)); border: 1px solid var(--color-outline-variant); border-radius: 14px; display: grid; gap: 14px; padding: 16px; }
+.arcpass-unified-heading { align-items: center; display: flex; gap: 14px; justify-content: space-between; }
+.arcpass-unified-title { align-items: center; display: flex; gap: 10px; min-width: 0; }
+.arcpass-unified-title > span { align-items: center; background: var(--color-on-surface); border-radius: 10px; color: var(--color-surface); display: flex; flex: 0 0 auto; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 900; height: 36px; justify-content: center; width: 36px; }
+.arcpass-unified-title strong, .arcpass-unified-title small { display: block; }
+.arcpass-unified-title strong { color: var(--color-on-surface); font-size: 0.84rem; }
+.arcpass-unified-title small { color: var(--color-on-surface-variant); font-size: 0.68rem; margin-top: 3px; }
+.arcpass-unified-refresh { background: var(--color-surface); border: 1px solid var(--color-outline-variant); border-radius: 9px; color: var(--color-on-surface); font: inherit; font-size: 0.72rem; font-weight: 850; padding: 9px 12px; white-space: nowrap; }
+.arcpass-unified-refresh:disabled { opacity: 0.62; }
+.arcpass-unified-overview { display: grid; gap: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.arcpass-unified-overview > div { background: color-mix(in srgb, var(--color-surface) 88%, transparent); border: 1px solid var(--color-outline-variant); border-radius: 10px; display: grid; gap: 5px; padding: 12px; }
+.arcpass-unified-overview span { color: var(--color-on-surface-variant); font-size: 0.66rem; font-weight: 800; }
+.arcpass-unified-overview strong { color: var(--color-on-surface); font-family: var(--font-mono); font-size: 1rem; }
+.arcpass-unified-overview strong small { color: var(--color-on-surface-variant); font-family: var(--font-sans); font-size: 0.62rem; }
+.arcpass-unified-readiness[data-ready="true"] { background: color-mix(in srgb, var(--color-success-soft) 58%, var(--color-surface)); border-color: color-mix(in srgb, var(--color-success) 42%, var(--color-outline-variant)); }
+.arcpass-unified-readiness[data-ready="true"] strong { color: var(--color-success); }
+.arcpass-unified-readiness[data-ready="false"] { background: color-mix(in srgb, var(--color-caution-soft) 54%, var(--color-surface)); border-color: color-mix(in srgb, var(--color-caution) 32%, var(--color-outline-variant)); }
+.arcpass-unified-readiness[data-ready="false"] strong { color: var(--color-caution); }
+.arcpass-unified-progress { background: var(--color-outline-variant); border-radius: 999px; height: 5px; overflow: hidden; }
+.arcpass-unified-progress > span { background: linear-gradient(90deg, var(--color-primary), #6d7cff); border-radius: inherit; display: block; height: 100%; min-width: 0; transition: width 220ms ease; }
+.arcpass-unified-allocations { display: grid; gap: 7px; }
+.arcpass-unified-allocations > div { align-items: center; display: grid; gap: 10px; grid-template-columns: 29px minmax(105px, 0.65fr) minmax(70px, 1fr) auto; }
+.arcpass-unified-chain-mark { align-items: center; background: #111827; border-radius: 8px; color: #fff; display: flex; font-size: 0.62rem; font-weight: 900; height: 29px; justify-content: center; width: 29px; }
+.arcpass-unified-chain-mark[data-chain="base-sepolia"] { background: #0052ff; }
+.arcpass-unified-chain-mark[data-chain="arbitrum-sepolia"] { background: #2d5f91; }
+.arcpass-unified-chain-mark[data-chain="arc-testnet"] { background: #090f2b; box-shadow: inset 0 0 0 1px #8ea2ff; }
+.arcpass-unified-allocations strong, .arcpass-unified-allocations small { display: block; }
+.arcpass-unified-allocations strong { color: var(--color-on-surface); font-size: 0.73rem; }
+.arcpass-unified-allocations small { color: var(--color-on-surface-variant); font-size: 0.62rem; margin-top: 2px; }
+.arcpass-unified-chain-bar { background: var(--color-outline-variant); border-radius: 999px; height: 4px; overflow: hidden; }
+.arcpass-unified-chain-bar i { background: var(--color-primary); border-radius: inherit; display: block; height: 100%; }
+.arcpass-unified-allocations b { color: var(--color-on-surface); font-family: var(--font-mono); font-size: 0.68rem; text-align: right; white-space: nowrap; }
+.arcpass-unified-empty { align-items: center; background: color-mix(in srgb, var(--color-surface) 70%, transparent); border: 1px dashed var(--color-outline-variant); border-radius: 10px; display: grid; gap: 13px; grid-template-columns: auto minmax(0, 1fr); padding: 13px; }
+.arcpass-unified-empty > div { display: flex; }
+.arcpass-unified-empty > div span { align-items: center; background: var(--color-surface-high); border: 2px solid var(--color-surface); border-radius: 50%; color: var(--color-on-surface); display: flex; font-size: 0.5rem; font-weight: 900; height: 31px; justify-content: center; margin-left: -7px; width: 31px; }
+.arcpass-unified-empty > div span:first-child { margin-left: 0; }
+.arcpass-unified-empty p, .arcpass-unified-disclosure, .arcpass-unified-pending { color: var(--color-on-surface-variant); font-size: 0.68rem; line-height: 1.5; margin: 0; }
+.arcpass-unified-pending { background: color-mix(in srgb, var(--color-caution-soft) 50%, var(--color-surface)); border: 1px solid color-mix(in srgb, var(--color-caution) 25%, var(--color-outline-variant)); border-radius: 9px; color: var(--color-caution); padding: 9px 11px; }
+.arcpass-unified-disclosure { border-top: 1px solid var(--color-outline-variant); padding-top: 11px; }
 .arcpass-source-network-list { display: grid; gap: 9px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .arcpass-source-network-list button { align-items: center; background: #f7f9fc; border: 1px solid #e0e6ef; border-radius: 11px; color: #26344c; cursor: pointer; display: grid; gap: 2px 9px; grid-template-columns: 34px minmax(0, 1fr); padding: 11px; text-align: left; }
 .arcpass-source-network-list button[aria-pressed="true"] { background: #edf3ff; border-color: #7ea8ff; box-shadow: inset 0 0 0 1px rgba(27, 102, 255, 0.08); }
@@ -897,6 +936,12 @@ button:disabled {
   .arcpass-template-save { align-items: stretch; flex-direction: column; }
   .arcpass-template-save input { max-width: none; }
   .arcpass-cross-chain-heading, .arcpass-cross-chain-actions { align-items: stretch; flex-direction: column; }
+  .arcpass-unified-heading { align-items: stretch; flex-direction: column; }
+  .arcpass-unified-refresh { width: 100%; }
+  .arcpass-unified-overview { grid-template-columns: 1fr; }
+  .arcpass-unified-allocations > div { grid-template-columns: 29px minmax(0, 1fr) auto; }
+  .arcpass-unified-chain-bar { display: none; }
+  .arcpass-unified-empty { align-items: start; grid-template-columns: 1fr; }
   .arcpass-source-network-list, .arcpass-cross-chain-checks, .arcpass-cross-chain-estimate { grid-template-columns: 1fr; }
   .arcpass-cross-chain-estimate > div { border-bottom: 1px solid #e7ebf1; border-right: 0; }
   .arcpass-cross-chain-estimate > div:last-child { border-bottom: 0; }

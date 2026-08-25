@@ -28,6 +28,7 @@ import {
   walletErrorMessage,
 } from "@/lib/wallet";
 import { shortAddress } from "@/lib/format";
+import { UnifiedUsdcBalance } from "@/components/UnifiedUsdcBalance";
 
 const balanceAbi = [{
   inputs: [{ name: "account", type: "address" }],
@@ -168,6 +169,7 @@ export function CrossChainCheckout({
         <p className="arcpass-cross-chain-notice">Cross-chain funding is currently available for USDC invoices. EURC invoices continue through the direct Arc payment path.</p>
       ) : (
         <>
+          <UnifiedUsdcBalance requiredAmount={bridgeAmount} />
           <div className="arcpass-source-network-list" aria-label="Source testnet">
             {(Object.entries(CROSS_CHAIN_SOURCES) as [CrossChainSourceId, typeof source][]).map(([id, option]) => (
               <button key={id} type="button" onClick={() => selectSource(id)} aria-pressed={sourceId === id} disabled={status === "checking" || status === "bridging"}>
