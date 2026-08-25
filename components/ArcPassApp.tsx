@@ -56,6 +56,7 @@ import { collectionReminders, type CollectionReminder } from "@/lib/collection-r
 import { parseBulkInvoiceDrafts, type BulkInvoiceDraft } from "@/lib/bulk-invoices";
 import { DEFAULT_PAYMENT_LINK_BRANDING, PAYMENT_BRAND_ACCENTS, merchantMonogram, type PaymentBrandAccent, type PaymentLinkBranding } from "@/lib/payment-branding";
 import { buildPayerDirectory, type PayerDirectoryEntry, type PayerSegment } from "@/lib/payer-directory";
+import { PaymentIntentCenter } from "@/components/PaymentIntentCenter";
 
 const WORKSPACE_TABS = [
   { id: "dashboard", label: "Dashboard" },
@@ -63,6 +64,7 @@ const WORKSPACE_TABS = [
   { id: "verify", label: "Verify Domain" },
   { id: "invoice", label: "Invoice Link" },
   { id: "payments", label: "Payments" },
+  { id: "intents", label: "Intents" },
   { id: "receipts", label: "Receipts" },
 ] as const;
 const INVOICE_FILTERS = [
@@ -405,7 +407,7 @@ export function ArcPassApp() {
           </button>
 
           <div className="arcpass-nav-links">
-            {WORKSPACE_TABS.slice(1, 5).map((tab) => (
+            {WORKSPACE_TABS.slice(1, 6).map((tab) => (
               <button
                 key={tab.id}
                 type="button"
@@ -549,6 +551,13 @@ export function ArcPassApp() {
             walletAddress={walletAddress}
           />
         ) : null}
+        {activeTab === "intents" ? (
+          <PaymentIntentCenter
+            invoiceHistory={invoiceHistory}
+            onCreateInvoice={() => setActiveTab("invoice")}
+            receiptHistory={receiptHistory}
+          />
+        ) : null}
         {activeTab === "receipts" ? (
           <ReceiptsTab
             invoiceHistory={invoiceHistory}
@@ -603,7 +612,7 @@ function DashboardTab({
             <button
               key={step}
               type="button"
-              onClick={() => selectTab(step === "01" ? "passport" : step === "02" ? "verify" : step === "03" ? "invoice" : "payments")}
+              onClick={() => selectTab(step === "01" ? "passport" : step === "02" ? "verify" : step === "03" ? "invoice" : "intents")}
               className="arcpass-flow-item"
             >
               <span>{step}</span>

@@ -11,6 +11,7 @@ ArcPass combines a merchant passport with buyer-readable stablecoin payment link
 - Arc Testnet ERC-20 transfer flow for USDC/EURC style payments
 - Cross-chain USDC checkout preparation from Ethereum, Base, or Arbitrum Sepolia through Circle CCTP Standard Transfer
 - Read-only Circle Gateway unified USDC balance with per-chain allocation, pending deposits, and invoice coverage
+- Payment Intent Center derived from registered invoices and verified Arc receipts, with action queues and lifecycle visibility
 - Source USDC, native gas, route fee, and invoice-state preflight before any bridge transaction is requested
 - Local invoice and receipt cache for fast merchant access
 - PostgreSQL-backed invoices, receipts, merchant sessions, challenges, and rate limits
