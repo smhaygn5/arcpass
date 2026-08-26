@@ -7,6 +7,7 @@ import { isReceiptForInvoice, publicPaymentReceiptLink, type PublicPaymentReceip
 import { ArcPassMark } from "@/components/ArcPassMark";
 import { normalizeRefundReason, refundRequestMessage, type RefundRequestStatus } from "@/lib/refunds";
 import { requestVerifiedWalletAddressSelection, signWalletMessage, walletErrorMessage } from "@/lib/wallet";
+import { recurringSeriesTotal } from "@/lib/recurring-invoices";
 
 type ReceiptState = "loading" | "ready" | "unavailable";
 
@@ -98,6 +99,8 @@ export function PublicPaymentReceipt({ invoice, payload }: { invoice: ArcPassInv
                 <ReceiptDetail label="Network" value="Arc Testnet" />
                 {invoice.installment ? <ReceiptDetail label="Installment" value={`${invoice.installment.installmentNumber}/${invoice.installment.installmentCount}`} /> : null}
                 {invoice.installment ? <ReceiptDetail label="Plan total" value={`${invoice.installment.planTotal} ${invoice.token}`} /> : null}
+                {invoice.recurring ? <ReceiptDetail label="Recurring cycle" value={`${invoice.recurring.cycleNumber}/${invoice.recurring.cycleCount}`} /> : null}
+                {invoice.recurring ? <ReceiptDetail label="Series value" value={`${recurringSeriesTotal(invoice.amount, invoice.recurring.cycleCount, invoice.token)} ${invoice.token}`} /> : null}
               </div>
               <div className="arcpass-receipt-transaction"><span>Transaction hash</span><a href={receipt.explorerUrl} target="_blank" rel="noreferrer">{shortAddress(receipt.txHash)}</a><small>Block {receipt.blockNumber} · Verified by ArcPass registry</small></div>
               <div className="arcpass-receipt-actions"><button type="button" onClick={() => window.print()} className="arcpass-ghost-button">Print receipt</button><button type="button" onClick={shareReceipt} className="arcpass-dark-button">Share receipt</button></div>

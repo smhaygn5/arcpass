@@ -13,6 +13,7 @@ ArcPass combines a merchant passport with buyer-readable stablecoin payment link
 - Read-only Circle Gateway unified USDC balance with per-chain allocation, pending deposits, and invoice coverage
 - Payment Intent Center derived from registered invoices and verified Arc receipts, with action queues and lifecycle visibility
 - Partial payments through exact installment schedules, where every stage is a separately locked invoice with its own verified Arc receipt
+- Merchant-approved recurring invoice schedules with cycle tracking and no automatic wallet charges
 - Source USDC, native gas, route fee, and invoice-state preflight before any bridge transaction is requested
 - Local invoice and receipt cache for fast merchant access
 - PostgreSQL-backed invoices, receipts, merchant sessions, challenges, and rate limits

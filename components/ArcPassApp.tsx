@@ -16,6 +16,7 @@ import {
   type ArcPassTokenSymbol,
   type InstallmentCadence,
   type PassportStatus,
+  type RecurringCadence,
   type RefundPolicy,
 } from "@/lib/arcpass";
 import {
@@ -60,6 +61,15 @@ import { buildPayerDirectory, type PayerDirectoryEntry, type PayerSegment } from
 import { PaymentIntentCenter } from "@/components/PaymentIntentCenter";
 import { InstallmentPlanCenter } from "@/components/InstallmentPlanCenter";
 import { buildInstallmentSchedule, type InstallmentScheduleItem } from "@/lib/installments";
+import { RecurringInvoiceCenter } from "@/components/RecurringInvoiceCenter";
+import {
+  buildRecurringPreview,
+  createRecurringScheduleId,
+  recurringCycleDescription,
+  recurringMetadata,
+  recurringSeriesTotal,
+  type RecurringScheduleSummary,
+} from "@/lib/recurring-invoices";
 
 const WORKSPACE_TABS = [
   { id: "dashboard", label: "Dashboard" },
@@ -414,6 +424,93 @@ export function ArcPassApp() {
     }
   }
 
+  async function createRecurringPaymentLink({
+    branding,
+    cadence,
+    cycleCount,
+  }: {
+    branding: PaymentLinkBranding;
+    cadence: RecurringCadence;
+    cycleCount: number;
+  }) {
+    setError(null);
+    setServerInvoiceError(null);
+
+    try {
+      if (!walletAddress) throw new Error("Connect a merchant wallet before creating a recurring schedule.");
+      const merchant = createMerchantPassport({ businessName, domain, refundPolicy, status: passportStatus, walletAddress });
+      const dueAt = new Date(expiresAt);
+      const recurring = recurringMetadata({
+        anchorDay: dueAt.getUTCDate(),
+        cadence,
+        cycleCount,
+        cycleNumber: 1,
+        scheduleId: createRecurringScheduleId(),
+        seriesTitle: description,
+      });
+      const invoice = createInvoice({
+        amount,
+        branding,
+        description: recurringCycleDescription(description, 1, cycleCount),
+        expiresAt: dueAt.toISOString(),
+        merchant,
+        recurring,
+        token,
+      });
+      const draft = createSavedInvoice({ invoice, origin: window.location.origin });
+      const res = await fetch("/api/invoices", { body: JSON.stringify({ payload: draft.payload }), headers: { "content-type": "application/json" }, method: "POST" });
+      const body = (await res.json().catch(() => null)) as { error?: string; invoice?: unknown; saved?: boolean } | null;
+      const serverInvoice = isSavedInvoice(body?.invoice) ? body.invoice : null;
+      if (!res.ok || body?.saved !== true || !serverInvoice) throw new Error(body?.error || "The recurring schedule could not be registered.");
+      saveInvoiceLocally(serverInvoice);
+      setInvoiceHistory((current) => mergeSavedInvoices([[serverInvoice], loadSavedInvoices(), current]));
+      setCreatedLink(serverInvoice.link);
+      setCreatedInvoiceId(serverInvoice.invoice.invoiceId);
+      setActiveTab("intents");
+      return serverInvoice;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "The recurring schedule could not be created.";
+      setError(message);
+      throw new Error(message);
+    }
+  }
+
+  async function issueNextRecurringInvoice(schedule: RecurringScheduleSummary) {
+    setError(null);
+    setServerInvoiceError(null);
+
+    try {
+      if (!walletAddress) throw new Error("Connect the schedule merchant wallet before issuing the next cycle.");
+      const source = schedule.latestInvoice.invoice;
+      const recurring = source.recurring;
+      if (!recurring || !schedule.canIssueNext || !schedule.nextCycleNumber || !schedule.nextDueAt) throw new Error("The next recurring cycle is not ready to issue.");
+      if (source.merchant.walletAddress.toLowerCase() !== walletAddress.toLowerCase()) throw new Error("The connected wallet does not own this recurring schedule.");
+      const invoice = createInvoice({
+        amount: source.amount,
+        branding: source.branding,
+        description: recurringCycleDescription(recurring.seriesTitle, schedule.nextCycleNumber, recurring.cycleCount),
+        expiresAt: schedule.nextDueAt,
+        merchant: source.merchant,
+        recurring: recurringMetadata({ ...recurring, cycleNumber: schedule.nextCycleNumber }),
+        token: source.token,
+      });
+      const draft = createSavedInvoice({ invoice, origin: window.location.origin });
+      const res = await fetch("/api/invoices", { body: JSON.stringify({ payload: draft.payload }), headers: { "content-type": "application/json" }, method: "POST" });
+      const body = (await res.json().catch(() => null)) as { error?: string; invoice?: unknown; saved?: boolean } | null;
+      const serverInvoice = isSavedInvoice(body?.invoice) ? body.invoice : null;
+      if (!res.ok || body?.saved !== true || !serverInvoice) throw new Error(body?.error || "The next recurring invoice could not be registered.");
+      saveInvoiceLocally(serverInvoice);
+      setInvoiceHistory((current) => mergeSavedInvoices([[serverInvoice], loadSavedInvoices(), current]));
+      setCreatedLink(serverInvoice.link);
+      setCreatedInvoiceId(serverInvoice.invoice.invoiceId);
+      return serverInvoice;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "The next recurring invoice could not be issued.";
+      setError(message);
+      throw new Error(message);
+    }
+  }
+
   async function createBulkPaymentLinks(drafts: BulkInvoiceDraft[], branding: PaymentLinkBranding) {
     setError(null);
     setServerInvoiceError(null);
@@ -585,6 +682,7 @@ export function ArcPassApp() {
             createBulkPaymentLinks={createBulkPaymentLinks}
             createInstallmentPaymentLinks={createInstallmentPaymentLinks}
             createPaymentLink={createPaymentLink}
+            createRecurringPaymentLink={createRecurringPaymentLink}
             description={description}
             expiresAt={expiresAt}
             setAmount={setAmount}
@@ -618,6 +716,12 @@ export function ArcPassApp() {
             <InstallmentPlanCenter
               invoiceHistory={invoiceHistory}
               onCreatePlan={() => setActiveTab("invoice")}
+              receiptHistory={receiptHistory}
+            />
+            <RecurringInvoiceCenter
+              invoiceHistory={invoiceHistory}
+              onCreateSchedule={() => setActiveTab("invoice")}
+              onIssueNext={issueNextRecurringInvoice}
               receiptHistory={receiptHistory}
             />
           </div>
@@ -926,6 +1030,7 @@ function InvoiceTab({
   createBulkPaymentLinks,
   createInstallmentPaymentLinks,
   createPaymentLink,
+  createRecurringPaymentLink,
   description,
   expiresAt,
   setAmount,
@@ -939,6 +1044,7 @@ function InvoiceTab({
   createBulkPaymentLinks: (drafts: BulkInvoiceDraft[], branding: PaymentLinkBranding) => Promise<number>;
   createInstallmentPaymentLinks: (input: { branding: PaymentLinkBranding; cadence: InstallmentCadence; installmentCount: number }) => Promise<number>;
   createPaymentLink: (branding: PaymentLinkBranding) => Promise<void>;
+  createRecurringPaymentLink: (input: { branding: PaymentLinkBranding; cadence: RecurringCadence; cycleCount: number }) => Promise<SavedInvoice>;
   description: string;
   expiresAt: string;
   setAmount: (value: string) => void;
@@ -954,13 +1060,18 @@ function InvoiceTab({
   const [bulkSuccess, setBulkSuccess] = useState<string | null>(null);
   const [isCreatingBulk, setIsCreatingBulk] = useState(false);
   const [isCreatingPlan, setIsCreatingPlan] = useState(false);
+  const [isCreatingSchedule, setIsCreatingSchedule] = useState(false);
   const [brandAccent, setBrandAccent] = useState<PaymentBrandAccent>(DEFAULT_PAYMENT_LINK_BRANDING.accent);
   const [brandMessage, setBrandMessage] = useState("");
   const [installmentCadence, setInstallmentCadence] = useState<InstallmentCadence>("monthly");
   const [installmentCount, setInstallmentCount] = useState(3);
-  const [paymentTerms, setPaymentTerms] = useState<"installments" | "one-time">("one-time");
+  const [paymentTerms, setPaymentTerms] = useState<"installments" | "one-time" | "recurring">("one-time");
   const [planError, setPlanError] = useState<string | null>(null);
   const [planSuccess, setPlanSuccess] = useState<string | null>(null);
+  const [recurringCadence, setRecurringCadence] = useState<RecurringCadence>("monthly");
+  const [recurringCycleCount, setRecurringCycleCount] = useState(6);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [scheduleSuccess, setScheduleSuccess] = useState<string | null>(null);
   const [showMonogram, setShowMonogram] = useState(true);
   const bulkPreview = useMemo(() => parseBulkInvoiceDrafts(bulkInput), [bulkInput]);
   const branding = useMemo<PaymentLinkBranding>(() => ({ accent: brandAccent, message: brandMessage.trim(), showMonogram }), [brandAccent, brandMessage, showMonogram]);
@@ -972,6 +1083,21 @@ function InvoiceTab({
       return [];
     }
   }, [amount, expiresAt, installmentCadence, installmentCount, paymentTerms, token]);
+  const recurringPreview = useMemo(() => {
+    if (paymentTerms !== "recurring") return [];
+    try {
+      return buildRecurringPreview({ amount, cadence: recurringCadence, cycleCount: recurringCycleCount, firstDueAt: new Date(expiresAt).toISOString(), token });
+    } catch {
+      return [];
+    }
+  }, [amount, expiresAt, paymentTerms, recurringCadence, recurringCycleCount, token]);
+  const recurringTotal = useMemo(() => {
+    try {
+      return recurringSeriesTotal(amount, recurringCycleCount, token);
+    } catch {
+      return "—";
+    }
+  }, [amount, recurringCycleCount, token]);
 
   function applyTemplate(template: InvoiceTemplate) {
     setAmount(template.amount);
@@ -1031,6 +1157,24 @@ function InvoiceTab({
     }
   }
 
+  async function createSchedule() {
+    setScheduleError(null);
+    setScheduleSuccess(null);
+    if (recurringPreview.length !== recurringCycleCount) {
+      setScheduleError("Enter a valid amount, first due date, cadence, and cycle count before creating the schedule.");
+      return;
+    }
+    setIsCreatingSchedule(true);
+    try {
+      await createRecurringPaymentLink({ branding, cadence: recurringCadence, cycleCount: recurringCycleCount });
+      setScheduleSuccess(`Recurring schedule created with ${recurringCycleCount} planned cycles.`);
+    } catch (err) {
+      setScheduleError(err instanceof Error ? err.message : "The recurring schedule could not be created.");
+    } finally {
+      setIsCreatingSchedule(false);
+    }
+  }
+
   return (
     <div className="arcpass-panel">
       <p className="arcpass-panel-label">Invoice builder</p>
@@ -1064,16 +1208,17 @@ function InvoiceTab({
             <option value="EURC">EURC</option>
           </select>
         </Field>
-        <Field label={paymentTerms === "installments" ? "First installment due" : "Expires at"}>
+        <Field label={paymentTerms === "installments" ? "First installment due" : paymentTerms === "recurring" ? "First cycle due" : "Expires at"}>
           <input value={expiresAt} type="datetime-local" onChange={(event) => setExpiresAt(event.target.value)} className={INPUT_CLASS} />
         </Field>
       </div>
       <section className="arcpass-payment-terms">
         <div className="arcpass-payment-terms-heading">
-          <div><p className="arcpass-panel-label">Payment terms</p><h3>Collect once or split the total into locked installments.</h3><p>Installments are separate server-registered invoices, so every partial payment remains exact and independently verifiable.</p></div>
+          <div><p className="arcpass-panel-label">Payment terms</p><h3>Collect once, split a total, or schedule recurring invoices.</h3><p>Every installment and recurring cycle is a separate server-registered invoice, keeping each payment exact and independently verifiable.</p></div>
           <div className="arcpass-payment-terms-toggle" role="tablist" aria-label="Invoice payment terms">
-            <button type="button" role="tab" aria-selected={paymentTerms === "one-time"} onClick={() => { setPaymentTerms("one-time"); setPlanError(null); setPlanSuccess(null); }}>One-time</button>
-            <button type="button" role="tab" aria-selected={paymentTerms === "installments"} onClick={() => { setPaymentTerms("installments"); setPlanError(null); setPlanSuccess(null); }}>Installments</button>
+            <button type="button" role="tab" aria-selected={paymentTerms === "one-time"} onClick={() => { setPaymentTerms("one-time"); setPlanError(null); setPlanSuccess(null); setScheduleError(null); setScheduleSuccess(null); }}>One-time</button>
+            <button type="button" role="tab" aria-selected={paymentTerms === "installments"} onClick={() => { setPaymentTerms("installments"); setPlanError(null); setPlanSuccess(null); setScheduleError(null); setScheduleSuccess(null); }}>Installments</button>
+            <button type="button" role="tab" aria-selected={paymentTerms === "recurring"} onClick={() => { setPaymentTerms("recurring"); setPlanError(null); setPlanSuccess(null); setScheduleError(null); setScheduleSuccess(null); }}>Recurring</button>
           </div>
         </div>
         {paymentTerms === "installments" ? (
@@ -1102,6 +1247,34 @@ function InvoiceTab({
             ) : <p className="arcpass-error">The schedule preview will appear after the total and first due date are valid.</p>}
           </div>
         ) : null}
+        {paymentTerms === "recurring" ? (
+          <div className="arcpass-recurring-config">
+            <div className="arcpass-recurring-controls">
+              <Field label="Number of cycles">
+                <select aria-label="Number of recurring cycles" value={recurringCycleCount} onChange={(event) => setRecurringCycleCount(Number(event.target.value))} className={INPUT_CLASS}>
+                  {[2, 3, 6, 12, 18, 24].map((count) => <option key={count} value={count}>{count} cycles</option>)}
+                </select>
+              </Field>
+              <Field label="Cadence">
+                <select aria-label="Recurring cadence" value={recurringCadence} onChange={(event) => setRecurringCadence(event.target.value as RecurringCadence)} className={INPUT_CLASS}>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="quarterly">Quarterly</option>
+                </select>
+              </Field>
+              <div><span>Series value</span><strong>{recurringTotal} {token}</strong><small>{amount || "0"} {token} per separately approved cycle.</small></div>
+            </div>
+            {recurringPreview.length ? (
+              <div className="arcpass-recurring-preview">
+                {recurringPreview.slice(0, 4).map((item) => (
+                  <article key={item.cycleNumber}><span>{item.cycleNumber}</span><div><strong>{item.amount} {token}</strong><small>Due {new Date(item.dueAt).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}</small></div></article>
+                ))}
+                {recurringPreview.length > 4 ? <p>+ {recurringPreview.length - 4} later cycles calculated from the same cadence.</p> : null}
+              </div>
+            ) : <p className="arcpass-error">The recurring preview will appear after the cycle amount and first due date are valid.</p>}
+            <p className="arcpass-recurring-consent">No automatic transfer or token approval is created. The payer confirms every cycle in their wallet.</p>
+          </div>
+        ) : null}
       </section>
       <div className="arcpass-template-save">
         <input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Template name (optional)" className={INPUT_CLASS} />
@@ -1115,6 +1288,10 @@ function InvoiceTab({
         <button type="button" onClick={() => void createPlan()} disabled={isCreatingPlan || installmentPreview.length !== installmentCount} className="arcpass-dark-button arcpass-inline-action">
           {isCreatingPlan ? "Registering installment plan" : `Create ${installmentCount} verified installment links`}
         </button>
+      ) : paymentTerms === "recurring" ? (
+        <button type="button" onClick={() => void createSchedule()} disabled={isCreatingSchedule || recurringPreview.length !== recurringCycleCount} className="arcpass-dark-button arcpass-inline-action">
+          {isCreatingSchedule ? "Registering recurring schedule" : `Create ${recurringCycleCount}-cycle schedule`}
+        </button>
       ) : (
         <button type="button" onClick={() => void createPaymentLink(branding)} className="arcpass-dark-button arcpass-inline-action">
           Generate verified payment link
@@ -1122,6 +1299,8 @@ function InvoiceTab({
       )}
       {planError ? <p className="arcpass-error" role="alert">{planError}</p> : null}
       {planSuccess ? <p className="arcpass-success">{planSuccess}</p> : null}
+      {scheduleError ? <p className="arcpass-error" role="alert">{scheduleError}</p> : null}
+      {scheduleSuccess ? <p className="arcpass-success">{scheduleSuccess}</p> : null}
       <section className="arcpass-bulk-builder">
         <div><p className="arcpass-panel-label">Bulk invoice creator</p><h3>Create up to 10 verified links at once.</h3><p>Enter one invoice per line using: Description | Amount | Token | Expiry hours</p></div>
         <textarea value={bulkInput} onChange={(event) => { setBulkInput(event.target.value); setBulkError(null); setBulkSuccess(null); }} placeholder={"Design delivery | 250 | USDC | 72\nMonthly support | 99 | EURC | 168"} rows={5} />
@@ -2029,6 +2208,9 @@ function exportInvoiceReport(items: SavedInvoice[], receiptHistory: SavedReceipt
       item.invoice.installment?.planId ?? "",
       item.invoice.installment ? `${item.invoice.installment.installmentNumber}/${item.invoice.installment.installmentCount}` : "",
       item.invoice.installment?.planTotal ?? "",
+      item.invoice.recurring?.scheduleId ?? "",
+      item.invoice.recurring ? `${item.invoice.recurring.cycleNumber}/${item.invoice.recurring.cycleCount}` : "",
+      item.invoice.recurring?.seriesTitle ?? "",
       item.link,
       receipt?.txHash ?? "",
     ];
@@ -2049,6 +2231,9 @@ function exportInvoiceReport(items: SavedInvoice[], receiptHistory: SavedReceipt
       "Plan ID",
       "Installment",
       "Plan Total",
+      "Schedule ID",
+      "Recurring Cycle",
+      "Series Title",
       "Checkout Link",
       "Receipt Transaction",
     ],

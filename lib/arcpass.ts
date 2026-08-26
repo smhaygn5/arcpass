@@ -21,6 +21,7 @@ const MAX_ID_LENGTH = 80;
 
 export type ArcPassTokenSymbol = "USDC" | "EURC";
 export type InstallmentCadence = "weekly" | "biweekly" | "monthly";
+export type RecurringCadence = "weekly" | "monthly" | "quarterly";
 export type PassportStatus = "verified" | "pending" | "unverified";
 export type RefundPolicy = "none" | "merchant-refund" | "escrow-window";
 
@@ -30,6 +31,15 @@ export type InvoiceInstallment = {
   installmentNumber: number;
   planId: string;
   planTotal: string;
+};
+
+export type InvoiceRecurring = {
+  anchorDay: number;
+  cadence: RecurringCadence;
+  cycleCount: number;
+  cycleNumber: number;
+  scheduleId: string;
+  seriesTitle: string;
 };
 
 export type MerchantPassport = {
@@ -51,6 +61,7 @@ export type ArcPassInvoice = {
   invoiceId: string;
   installment?: InvoiceInstallment;
   merchant: MerchantPassport;
+  recurring?: InvoiceRecurring;
   token: ArcPassTokenSymbol;
   version: typeof ARCPASS_VERSION;
 };
@@ -132,6 +143,7 @@ export function createInvoice(input: {
   expiresAt: string;
   installment?: InvoiceInstallment;
   merchant: MerchantPassport;
+  recurring?: InvoiceRecurring;
   token: ArcPassTokenSymbol;
 }): ArcPassInvoice {
   assertValidAmount(input.amount, input.token);
@@ -149,6 +161,9 @@ export function createInvoice(input: {
   if (input.branding !== undefined && !branding) throw new Error("Payment link branding is invalid.");
   const installment = input.installment === undefined ? undefined : normalizeInvoiceInstallment(input.installment, input.token);
   if (input.installment !== undefined && !installment) throw new Error("Invoice installment metadata is invalid.");
+  const recurring = input.recurring === undefined ? undefined : normalizeInvoiceRecurring(input.recurring);
+  if (input.recurring !== undefined && !recurring) throw new Error("Invoice recurring metadata is invalid.");
+  if (installment && recurring) throw new Error("An invoice cannot be both installment and recurring.");
   if (installment && invoiceAmountRawValue(input.amount, input.token) > invoiceAmountRawValue(installment.planTotal, input.token)) {
     throw new Error("Installment amount cannot exceed the plan total.");
   }
@@ -162,6 +177,7 @@ export function createInvoice(input: {
     invoiceId: createShortId("inv"),
     ...(installment ? { installment } : {}),
     merchant: input.merchant,
+    ...(recurring ? { recurring } : {}),
     token: input.token,
     version: ARCPASS_VERSION,
   };
@@ -196,6 +212,9 @@ export function decodeInvoicePayload(payload: string): ArcPassInvoice | null {
     if (invoice.branding !== undefined && !branding) return null;
     const installment = invoice.installment === undefined ? undefined : normalizeInvoiceInstallment(invoice.installment, invoice.token);
     if (invoice.installment !== undefined && !installment) return null;
+    const recurring = invoice.recurring === undefined ? undefined : normalizeInvoiceRecurring(invoice.recurring);
+    if (invoice.recurring !== undefined && !recurring) return null;
+    if (installment && recurring) return null;
     assertValidAmount(invoice.amount, invoice.token);
     if (installment && invoiceAmountRawValue(invoice.amount, invoice.token) > invoiceAmountRawValue(installment.planTotal, invoice.token)) return null;
 
@@ -208,6 +227,7 @@ export function decodeInvoicePayload(payload: string): ArcPassInvoice | null {
       invoiceId: invoice.invoiceId,
       ...(installment ? { installment } : {}),
       merchant,
+      ...(recurring ? { recurring } : {}),
       token: invoice.token,
       version: ARCPASS_VERSION,
     };
@@ -359,6 +379,7 @@ function stableInvoiceJson(invoice: ArcPassInvoice) {
     invoiceId: invoice.invoiceId,
     ...(invoice.installment ? { installment: invoice.installment } : {}),
     merchantHash: merchantPassportHash(invoice.merchant),
+    ...(invoice.recurring ? { recurring: invoice.recurring } : {}),
     token: invoice.token,
     version: invoice.version,
   });
@@ -384,6 +405,27 @@ function normalizeInvoiceInstallment(value: Partial<InvoiceInstallment>, token: 
     installmentNumber: Number(value.installmentNumber),
     planId: value.planId,
     planTotal: normalizeAmount(value.planTotal),
+  };
+}
+
+function normalizeInvoiceRecurring(value: Partial<InvoiceRecurring>): InvoiceRecurring | null {
+  if (!value || typeof value !== "object") return null;
+  if (typeof value.scheduleId !== "string" || !/^schedule_[a-zA-Z0-9_-]{1,64}$/.test(value.scheduleId)) return null;
+  if (!Number.isInteger(value.cycleCount) || Number(value.cycleCount) < 2 || Number(value.cycleCount) > 24) return null;
+  if (!Number.isInteger(value.cycleNumber) || Number(value.cycleNumber) < 1 || Number(value.cycleNumber) > Number(value.cycleCount)) return null;
+  if (!Number.isInteger(value.anchorDay) || Number(value.anchorDay) < 1 || Number(value.anchorDay) > 31) return null;
+  if (!value.cadence || !["weekly", "monthly", "quarterly"].includes(value.cadence)) return null;
+  if (typeof value.seriesTitle !== "string") return null;
+  const seriesTitle = value.seriesTitle.trim();
+  if (!seriesTitle || seriesTitle.length > MAX_DESCRIPTION_LENGTH) return null;
+
+  return {
+    anchorDay: Number(value.anchorDay),
+    cadence: value.cadence,
+    cycleCount: Number(value.cycleCount),
+    cycleNumber: Number(value.cycleNumber),
+    scheduleId: value.scheduleId,
+    seriesTitle,
   };
 }
 

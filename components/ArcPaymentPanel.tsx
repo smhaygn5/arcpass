@@ -43,6 +43,7 @@ import { checkoutRecoveryPlan } from "@/lib/checkout-recovery";
 import { DEFAULT_PAYMENT_LINK_BRANDING, PAYMENT_BRAND_ACCENTS, merchantMonogram } from "@/lib/payment-branding";
 import { CrossChainCheckout } from "@/components/CrossChainCheckout";
 import { installmentCadenceLabel } from "@/lib/installments";
+import { recurringCadenceLabel, recurringSeriesTotal } from "@/lib/recurring-invoices";
 
 const erc20Abi = [
   {
@@ -110,6 +111,7 @@ export function ArcPaymentPanel({
   const merchantAddress = invoice.merchant.walletAddress;
   const token = ARCPASS_TOKENS[invoice.token];
   const installment = invoice.installment;
+  const recurring = invoice.recurring;
   const score = trustScore(invoice.merchant);
   const expired = invoiceExpired(invoice);
   const hasEnoughBalance = balance == null ? null : balance >= amountRaw;
@@ -393,16 +395,19 @@ export function ArcPaymentPanel({
               <p>
                 {installment
                   ? `Pay installment ${installment.installmentNumber} of ${installment.installmentCount} to a merchant passport linked with ${invoice.merchant.domain}. This link locks only its exact share of the ${installment.planTotal} ${invoice.token} plan.`
+                  : recurring
+                    ? `Pay cycle ${recurring.cycleNumber} of ${recurring.cycleCount} to a merchant passport linked with ${invoice.merchant.domain}. This link locks this cycle only; ArcPass never authorizes automatic wallet charges.`
                   : `Pay ${invoice.amount} ${invoice.token} to a merchant passport linked with ${invoice.merchant.domain}. The invoice hash below locks the amount, token, merchant, and expiry.`}
               </p>
             </div>
 
             <aside className="arcpass-checkout-paybox">
-              <p className="arcpass-panel-label">{installment ? `Installment ${installment.installmentNumber}/${installment.installmentCount} due` : "Amount due"}</p>
+              <p className="arcpass-panel-label">{installment ? `Installment ${installment.installmentNumber}/${installment.installmentCount} due` : recurring ? `Cycle ${recurring.cycleNumber}/${recurring.cycleCount} due` : "Amount due"}</p>
               <strong>
                 {invoice.amount} {invoice.token}
               </strong>
               {installment ? <div className="arcpass-checkout-installment-summary"><span>Plan total <b>{installment.planTotal} {invoice.token}</b></span><span>Cadence <b>{installmentCadenceLabel(installment.cadence)}</b></span></div> : null}
+              {recurring ? <div className="arcpass-checkout-installment-summary"><span>Series value <b>{recurringSeriesTotal(invoice.amount, recurring.cycleCount, invoice.token)} {invoice.token}</b></span><span>Cadence <b>{recurringCadenceLabel(recurring.cadence)}</b></span></div> : null}
               <div className="arcpass-pay-actions">
                 <button
                   type="button"
@@ -479,6 +484,8 @@ export function ArcPaymentPanel({
               <Detail label="Token" value={invoice.token} />
               {installment ? <Detail label="Payment terms" value={`${installment.installmentNumber} of ${installment.installmentCount} · ${installmentCadenceLabel(installment.cadence)}`} /> : null}
               {installment ? <Detail label="Plan ID" value={installment.planId} /> : null}
+              {recurring ? <Detail label="Payment terms" value={`Cycle ${recurring.cycleNumber} of ${recurring.cycleCount} · ${recurringCadenceLabel(recurring.cadence)}`} /> : null}
+              {recurring ? <Detail label="Schedule ID" value={recurring.scheduleId} /> : null}
             </div>
           </div>
 
@@ -560,7 +567,7 @@ export function ArcPaymentPanel({
         <div className="arcpass-panel">
           <p className="arcpass-panel-label">Payment state</p>
           <p className="arcpass-muted">
-            Payment sends exactly {formatInvoiceAmount(amountRaw, invoice.token)} {invoice.token} to the verified merchant wallet{installment ? ` and settles only installment ${installment.installmentNumber} of ${installment.installmentCount}` : ""}.
+            Payment sends exactly {formatInvoiceAmount(amountRaw, invoice.token)} {invoice.token} to the verified merchant wallet{installment ? ` and settles only installment ${installment.installmentNumber} of ${installment.installmentCount}` : recurring ? ` and settles only recurring cycle ${recurring.cycleNumber} of ${recurring.cycleCount}` : ""}.
           </p>
 
           {payer ? (
