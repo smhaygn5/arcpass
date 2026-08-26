@@ -70,6 +70,8 @@ import {
   recurringSeriesTotal,
   type RecurringScheduleSummary,
 } from "@/lib/recurring-invoices";
+import { TeamAccessCenter } from "@/components/TeamAccessCenter";
+import { isApprovalRequestView, type ApprovalRequestView } from "@/lib/team-policies";
 
 const WORKSPACE_TABS = [
   { id: "dashboard", label: "Dashboard" },
@@ -78,6 +80,7 @@ const WORKSPACE_TABS = [
   { id: "invoice", label: "Invoice Link" },
   { id: "payments", label: "Payments" },
   { id: "intents", label: "Intents" },
+  { id: "team", label: "Team" },
   { id: "receipts", label: "Receipts" },
 ] as const;
 const INVOICE_FILTERS = [
@@ -106,10 +109,12 @@ type ReceiptOperationsSummary = {
 };
 type VerificationState = "idle" | "checking" | "verified" | "failed";
 type WorkspaceTab = (typeof WORKSPACE_TABS)[number]["id"];
+type InvoiceOperationResult = { invoices: SavedInvoice[]; status: "registered" } | { request: ApprovalRequestView; status: "pending" };
 
 export function ArcPassApp() {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("dashboard");
   const [amount, setAmount] = useState("5.00");
+  const [approvalRefreshKey, setApprovalRefreshKey] = useState(0);
   const [businessName, setBusinessName] = useState("Northstar AI Studio");
   const [createdLink, setCreatedLink] = useState<string | null>(null);
   const [createdInvoiceId, setCreatedInvoiceId] = useState<string | null>(null);
@@ -282,6 +287,24 @@ export function ArcPassApp() {
     setReceiptHistory((current) => mergeSavedReceipts([receipts, current, loadSavedReceipts()]));
   }
 
+  async function registerInvoiceOperation(drafts: SavedInvoice[], operationLabel: string): Promise<InvoiceOperationResult> {
+    const res = await fetch("/api/approvals", {
+      body: JSON.stringify({ operationLabel, payloads: drafts.map((draft) => draft.payload) }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    const body = (await res.json().catch(() => null)) as { error?: string; invoices?: unknown[]; request?: unknown; saved?: boolean; status?: unknown } | null;
+    if (!res.ok) throw new Error(body?.error || "Invoice policy check could not be completed.");
+    if (body?.status === "pending" && isApprovalRequestView(body.request)) {
+      setApprovalRefreshKey((current) => current + 1);
+      setActiveTab("team");
+      return { request: body.request, status: "pending" };
+    }
+    const invoices = (body?.invoices ?? []).filter(isSavedInvoice);
+    if (body?.status !== "registered" || body.saved !== true || invoices.length !== drafts.length) throw new Error(body?.error || "The shared invoice ledger did not return every registered invoice.");
+    return { invoices, status: "registered" };
+  }
+
   async function verifyDomain() {
     if (!walletAddress) {
       setError("Connect a merchant wallet before verifying a domain.");
@@ -339,33 +362,15 @@ export function ArcPassApp() {
         merchant,
         token,
       });
-      const savedInvoice = createSavedInvoice({ invoice, origin: window.location.origin });
-      const nextHistory = saveInvoiceLocally(savedInvoice);
-
-      setCreatedLink(savedInvoice.link);
-      setCreatedInvoiceId(savedInvoice.invoice.invoiceId);
-      setInvoiceHistory(nextHistory);
+      const draft = createSavedInvoice({ invoice, origin: window.location.origin });
+      const result = await registerInvoiceOperation([draft], "One-time invoice");
+      if (result.status === "pending") return;
+      const serverInvoice = result.invoices[0];
+      saveInvoiceLocally(serverInvoice);
+      setCreatedLink(serverInvoice.link);
+      setCreatedInvoiceId(serverInvoice.invoice.invoiceId);
+      mergeInvoiceHistory([serverInvoice]);
       setActiveTab("payments");
-
-      try {
-        const res = await fetch("/api/invoices", {
-          body: JSON.stringify({ payload: savedInvoice.payload }),
-          headers: { "content-type": "application/json" },
-          method: "POST",
-        });
-        const body = (await res.json().catch(() => null)) as
-          | { error?: string; invoice?: unknown; saved?: boolean }
-          | null;
-
-        if (!res.ok || body?.saved !== true) {
-          throw new Error(body?.error || "Shared invoice ledger could not save this link.");
-        }
-
-        const serverInvoice = isSavedInvoice(body.invoice) ? body.invoice : savedInvoice;
-        mergeInvoiceHistory([serverInvoice]);
-      } catch (err) {
-        setServerInvoiceError(err instanceof Error ? err.message : "Shared invoice ledger could not save this link.");
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invoice could not be created.");
     }
@@ -400,16 +405,9 @@ export function ArcPassApp() {
         });
         return createSavedInvoice({ invoice, origin: window.location.origin });
       });
-      const res = await fetch("/api/invoices", {
-        body: JSON.stringify({ payloads: batch.map((item) => item.payload) }),
-        headers: { "content-type": "application/json" },
-        method: "POST",
-      });
-      const body = (await res.json().catch(() => null)) as { error?: string; invoices?: unknown[]; saved?: boolean } | null;
-      const serverInvoices = (body?.invoices ?? []).filter(isSavedInvoice);
-      if (!res.ok || body?.saved !== true || serverInvoices.length !== batch.length) {
-        throw new Error(body?.error || "The installment plan could not be registered in full.");
-      }
+      const result = await registerInvoiceOperation(batch, `${installmentCount}-part installment plan`);
+      if (result.status === "pending") return 0;
+      const serverInvoices = result.invoices;
 
       for (const item of serverInvoices) saveInvoiceLocally(item);
       setInvoiceHistory((current) => mergeSavedInvoices([serverInvoices, loadSavedInvoices(), current]));
@@ -458,10 +456,9 @@ export function ArcPassApp() {
         token,
       });
       const draft = createSavedInvoice({ invoice, origin: window.location.origin });
-      const res = await fetch("/api/invoices", { body: JSON.stringify({ payload: draft.payload }), headers: { "content-type": "application/json" }, method: "POST" });
-      const body = (await res.json().catch(() => null)) as { error?: string; invoice?: unknown; saved?: boolean } | null;
-      const serverInvoice = isSavedInvoice(body?.invoice) ? body.invoice : null;
-      if (!res.ok || body?.saved !== true || !serverInvoice) throw new Error(body?.error || "The recurring schedule could not be registered.");
+      const result = await registerInvoiceOperation([draft], `${cycleCount}-cycle recurring schedule`);
+      if (result.status === "pending") return null;
+      const serverInvoice = result.invoices[0];
       saveInvoiceLocally(serverInvoice);
       setInvoiceHistory((current) => mergeSavedInvoices([[serverInvoice], loadSavedInvoices(), current]));
       setCreatedLink(serverInvoice.link);
@@ -495,10 +492,9 @@ export function ArcPassApp() {
         token: source.token,
       });
       const draft = createSavedInvoice({ invoice, origin: window.location.origin });
-      const res = await fetch("/api/invoices", { body: JSON.stringify({ payload: draft.payload }), headers: { "content-type": "application/json" }, method: "POST" });
-      const body = (await res.json().catch(() => null)) as { error?: string; invoice?: unknown; saved?: boolean } | null;
-      const serverInvoice = isSavedInvoice(body?.invoice) ? body.invoice : null;
-      if (!res.ok || body?.saved !== true || !serverInvoice) throw new Error(body?.error || "The next recurring invoice could not be registered.");
+      const result = await registerInvoiceOperation([draft], `Recurring cycle ${schedule.nextCycleNumber}/${recurring.cycleCount}`);
+      if (result.status === "pending") return null;
+      const serverInvoice = result.invoices[0];
       saveInvoiceLocally(serverInvoice);
       setInvoiceHistory((current) => mergeSavedInvoices([[serverInvoice], loadSavedInvoices(), current]));
       setCreatedLink(serverInvoice.link);
@@ -521,10 +517,9 @@ export function ArcPassApp() {
         const invoice = createInvoice({ amount: draft.amount, branding, description: draft.description, expiresAt: new Date(Date.now() + draft.expiryHours * 3_600_000).toISOString(), merchant, token: draft.token });
         return createSavedInvoice({ invoice, origin: window.location.origin });
       });
-      const res = await fetch("/api/invoices", { body: JSON.stringify({ payloads: batch.map((item) => item.payload) }), headers: { "content-type": "application/json" }, method: "POST" });
-      const body = (await res.json().catch(() => null)) as { error?: string; invoices?: unknown[]; saved?: boolean } | null;
-      const serverInvoices = (body?.invoices ?? []).filter(isSavedInvoice);
-      if (!res.ok || body?.saved !== true || serverInvoices.length !== batch.length) throw new Error(body?.error || "The invoice batch could not be registered.");
+      const result = await registerInvoiceOperation(batch, `${batch.length}-invoice batch`);
+      if (result.status === "pending") return 0;
+      const serverInvoices = result.invoices;
       for (const item of serverInvoices) saveInvoiceLocally(item);
       setInvoiceHistory((current) => mergeSavedInvoices([serverInvoices, loadSavedInvoices(), current]));
       setCreatedLink(serverInvoices[0].link);
@@ -573,6 +568,9 @@ export function ArcPassApp() {
           </div>
 
           <div className="arcpass-nav-actions">
+            <button type="button" onClick={() => selectTab("team")} className="arcpass-ghost-button">
+              Team
+            </button>
             <button type="button" onClick={() => selectTab("receipts")} className="arcpass-ghost-button">
               Receipts
             </button>
@@ -737,6 +735,7 @@ export function ArcPassApp() {
             walletAddress={walletAddress}
           />
         ) : null}
+        {activeTab === "team" ? <TeamAccessCenter refreshKey={approvalRefreshKey} walletAddress={walletAddress} /> : null}
 
         {error ? (
           <p className="arcpass-error" role="alert">
@@ -1044,7 +1043,7 @@ function InvoiceTab({
   createBulkPaymentLinks: (drafts: BulkInvoiceDraft[], branding: PaymentLinkBranding) => Promise<number>;
   createInstallmentPaymentLinks: (input: { branding: PaymentLinkBranding; cadence: InstallmentCadence; installmentCount: number }) => Promise<number>;
   createPaymentLink: (branding: PaymentLinkBranding) => Promise<void>;
-  createRecurringPaymentLink: (input: { branding: PaymentLinkBranding; cadence: RecurringCadence; cycleCount: number }) => Promise<SavedInvoice>;
+  createRecurringPaymentLink: (input: { branding: PaymentLinkBranding; cadence: RecurringCadence; cycleCount: number }) => Promise<SavedInvoice | null>;
   description: string;
   expiresAt: string;
   setAmount: (value: string) => void;
@@ -1130,7 +1129,7 @@ function InvoiceTab({
     setIsCreatingBulk(true);
     try {
       const count = await createBulkPaymentLinks(bulkPreview.drafts, branding);
-      setBulkSuccess(`${count} verified payment links created.`);
+      setBulkSuccess(count ? `${count} verified payment links created.` : "Invoice batch sent to the team approval queue.");
       setBulkInput("");
     } catch (err) {
       setBulkError(err instanceof Error ? err.message : "The invoice batch could not be created.");
@@ -1149,7 +1148,7 @@ function InvoiceTab({
     setIsCreatingPlan(true);
     try {
       const count = await createInstallmentPaymentLinks({ branding, cadence: installmentCadence, installmentCount });
-      setPlanSuccess(`${count} locked installment links registered under one plan.`);
+      setPlanSuccess(count ? `${count} locked installment links registered under one plan.` : "Installment plan sent to the team approval queue.");
     } catch (err) {
       setPlanError(err instanceof Error ? err.message : "The installment plan could not be created.");
     } finally {
@@ -1166,8 +1165,8 @@ function InvoiceTab({
     }
     setIsCreatingSchedule(true);
     try {
-      await createRecurringPaymentLink({ branding, cadence: recurringCadence, cycleCount: recurringCycleCount });
-      setScheduleSuccess(`Recurring schedule created with ${recurringCycleCount} planned cycles.`);
+      const result = await createRecurringPaymentLink({ branding, cadence: recurringCadence, cycleCount: recurringCycleCount });
+      setScheduleSuccess(result ? `Recurring schedule created with ${recurringCycleCount} planned cycles.` : "Recurring schedule sent to the team approval queue.");
     } catch (err) {
       setScheduleError(err instanceof Error ? err.message : "The recurring schedule could not be created.");
     } finally {

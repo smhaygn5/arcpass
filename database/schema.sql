@@ -64,6 +64,32 @@ create table if not exists arcpass_rate_limits (
 
 create index if not exists arcpass_rate_limits_expiry_idx
   on arcpass_rate_limits (reset_at);
+
+create table if not exists arcpass_team_workspaces (
+  merchant text primary key,
+  workspace jsonb not null,
+  updated_at timestamptz not null
+);
+
+create table if not exists arcpass_approval_requests (
+  request_id text primary key,
+  merchant text not null,
+  status text not null check (status in ('pending', 'approved', 'expired')),
+  request jsonb not null,
+  created_at timestamptz not null,
+  expires_at timestamptz not null
+);
+
+create index if not exists arcpass_approvals_merchant_created_idx
+  on arcpass_approval_requests ((lower(merchant)), created_at desc);
+
+create table if not exists arcpass_approval_signatures (
+  request_id text not null references arcpass_approval_requests(request_id) on delete cascade,
+  approver text not null,
+  signature text not null,
+  approved_at timestamptz not null,
+  primary key (request_id, approver)
+);
 -- ArcPass is server-only. Block Supabase Data API roles even if public schema
 -- grants are enabled at the project level.
 alter table public.arcpass_invoices enable row level security;
@@ -72,6 +98,9 @@ alter table public.arcpass_refund_requests enable row level security;
 alter table public.arcpass_merchant_challenges enable row level security;
 alter table public.arcpass_merchant_sessions enable row level security;
 alter table public.arcpass_rate_limits enable row level security;
+alter table public.arcpass_team_workspaces enable row level security;
+alter table public.arcpass_approval_requests enable row level security;
+alter table public.arcpass_approval_signatures enable row level security;
 
 revoke all privileges on table
   public.arcpass_invoices,
@@ -79,5 +108,8 @@ revoke all privileges on table
   public.arcpass_refund_requests,
   public.arcpass_merchant_challenges,
   public.arcpass_merchant_sessions,
-  public.arcpass_rate_limits
+  public.arcpass_rate_limits,
+  public.arcpass_team_workspaces,
+  public.arcpass_approval_requests,
+  public.arcpass_approval_signatures
 from anon, authenticated, public;

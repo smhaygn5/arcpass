@@ -18,7 +18,7 @@ export function RecurringInvoiceCenter({
 }: {
   invoiceHistory: SavedInvoice[];
   onCreateSchedule: () => void;
-  onIssueNext: (schedule: RecurringScheduleSummary) => Promise<SavedInvoice>;
+  onIssueNext: (schedule: RecurringScheduleSummary) => Promise<SavedInvoice | null>;
   receiptHistory: SavedReceipt[];
 }) {
   const [actionError, setActionError] = useState<string | null>(null);

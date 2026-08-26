@@ -2202,18 +2202,114 @@ button:disabled {
 .arcpass-recurring-empty p, .arcpass-recurring-disclosure { color: var(--color-on-surface-variant); font-size: 0.66rem; line-height: 1.5; margin: 4px 0 0; }
 .arcpass-recurring-disclosure { border-top: 1px solid var(--color-outline-variant); margin: 0; padding-top: 12px; }
 
+.arcpass-team-center { display: grid; gap: 18px; }
+.arcpass-team-heading { align-items: flex-start; display: flex; gap: 20px; justify-content: space-between; }
+.arcpass-team-heading h3 { color: var(--color-on-surface); font-size: 1.2rem; margin: 5px 0 7px; }
+.arcpass-team-heading p:not(.arcpass-panel-label) { color: var(--color-on-surface-variant); font-size: 0.74rem; line-height: 1.55; margin: 0; max-width: 720px; }
+.arcpass-team-metrics { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.arcpass-team-metrics > div { background: color-mix(in srgb, var(--color-surface-high) 72%, var(--color-surface)); border: 1px solid var(--color-outline-variant); border-radius: 11px; display: grid; gap: 5px; padding: 13px; }
+.arcpass-team-metrics > div[data-tone="primary"] { background: var(--color-primary-soft); border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-outline-variant)); }
+.arcpass-team-metrics > div[data-tone="caution"] { background: var(--color-caution-soft); border-color: color-mix(in srgb, var(--color-caution) 24%, var(--color-outline-variant)); }
+.arcpass-team-metrics > div[data-tone="success"] { background: var(--color-success-soft); border-color: color-mix(in srgb, var(--color-success) 22%, var(--color-outline-variant)); }
+.arcpass-team-metrics span, .arcpass-team-metrics small { color: var(--color-on-surface-variant); font-size: 0.62rem; }
+.arcpass-team-metrics strong { color: var(--color-on-surface); font-family: var(--font-mono); font-size: 1.02rem; }
+.arcpass-team-grid { display: grid; gap: 12px; grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr); }
+.arcpass-team-section { background: color-mix(in srgb, var(--color-surface-high) 58%, var(--color-surface)); border: 1px solid var(--color-outline-variant); border-radius: 12px; display: grid; gap: 13px; padding: 15px; }
+.arcpass-team-section-head { align-items: flex-start; display: flex; gap: 12px; justify-content: space-between; }
+.arcpass-team-section-head span, .arcpass-team-section-head strong { display: block; }
+.arcpass-team-section-head span { color: var(--color-on-surface-variant); font-size: 0.62rem; font-weight: 800; }
+.arcpass-team-section-head strong { color: var(--color-on-surface); font-size: 0.82rem; margin-top: 3px; }
+.arcpass-team-section-head > small { color: var(--color-on-surface-variant); font-size: 0.62rem; }
+.arcpass-team-members { display: grid; gap: 7px; }
+.arcpass-team-members article { align-items: center; background: var(--color-surface); border: 1px solid var(--color-outline-variant); border-radius: 10px; display: grid; gap: 9px; grid-template-columns: 30px minmax(0, 1fr) auto auto; padding: 9px; }
+.arcpass-team-avatar { align-items: center; background: var(--color-primary-soft); border-radius: 50%; color: var(--color-primary); display: flex; font-size: 0.65rem; font-weight: 900; height: 30px; justify-content: center; }
+.arcpass-team-members strong, .arcpass-team-members small { display: block; }
+.arcpass-team-members strong { color: var(--color-on-surface); font-size: 0.7rem; }
+.arcpass-team-members small { color: var(--color-on-surface-variant); font-family: var(--font-mono); font-size: 0.58rem; margin-top: 3px; }
+.arcpass-team-members em { background: var(--color-success-soft); border-radius: 999px; color: var(--color-success); font-size: 0.6rem; font-style: normal; font-weight: 900; padding: 5px 8px; }
+.arcpass-team-members select, .arcpass-team-add input, .arcpass-team-add select, .arcpass-policy-fields input, .arcpass-policy-fields select { background: var(--color-surface); border: 1px solid var(--color-outline-variant); border-radius: 8px; color: var(--color-on-surface); font: inherit; min-height: 36px; outline: none; padding: 0 9px; }
+.arcpass-team-members select { font-size: 0.62rem; }
+.arcpass-team-members article > button { background: transparent; border: 0; color: var(--color-on-surface-variant); cursor: pointer; font-size: 1.1rem; }
+.arcpass-team-add { border-top: 1px solid var(--color-outline-variant); display: grid; gap: 8px; grid-template-columns: 0.7fr 1.3fr 0.65fr auto; padding-top: 12px; }
+.arcpass-team-add input, .arcpass-team-add select { font-size: 0.65rem; min-width: 0; width: 100%; }
+.arcpass-policy-builder > p { color: var(--color-on-surface-variant); font-size: 0.68rem; line-height: 1.55; margin: 0; }
+.arcpass-policy-switch { align-items: center; cursor: pointer; display: flex; gap: 7px; }
+.arcpass-policy-switch input { accent-color: var(--color-primary); }
+.arcpass-policy-switch span { color: var(--color-on-surface); font-size: 0.65rem; }
+.arcpass-policy-fields { display: grid; gap: 9px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.arcpass-policy-fields label { display: grid; gap: 5px; }
+.arcpass-policy-fields label:last-child { grid-column: span 2; }
+.arcpass-policy-fields label > span { color: var(--color-on-surface-variant); font-size: 0.62rem; font-weight: 800; }
+.arcpass-role-matrix { border-top: 1px solid var(--color-outline-variant); display: grid; gap: 12px; grid-template-columns: minmax(180px, 0.28fr) minmax(0, 0.72fr); padding-top: 16px; }
+.arcpass-role-matrix h3 { color: var(--color-on-surface); font-size: 0.92rem; margin: 4px 0 0; }
+.arcpass-role-matrix > div:last-child { display: grid; gap: 8px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.arcpass-role-matrix article { background: color-mix(in srgb, var(--color-surface-low) 72%, transparent); border: 1px solid var(--color-outline-variant); border-radius: 10px; display: grid; gap: 6px; padding: 11px; }
+.arcpass-role-matrix article strong { color: var(--color-on-surface); font-size: 0.7rem; margin-bottom: 2px; }
+.arcpass-role-matrix article span { color: var(--color-on-surface-variant); font-size: 0.59rem; line-height: 1.4; }
+.arcpass-team-disclosure { background: color-mix(in srgb, var(--color-primary-soft) 32%, transparent); border-left: 3px solid var(--color-primary); color: var(--color-on-surface-variant); font-size: 0.64rem; line-height: 1.5; margin: 0; padding: 9px 11px; }
+.arcpass-approval-queue { border-top: 1px solid var(--color-outline-variant); display: grid; gap: 12px; padding-top: 16px; }
+.arcpass-approval-list { display: grid; gap: 8px; }
+.arcpass-approval-list article { align-items: center; background: color-mix(in srgb, var(--color-surface-low) 72%, transparent); border: 1px solid var(--color-outline-variant); border-radius: 10px; display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) auto auto; padding: 12px; }
+.arcpass-approval-list article[data-status="pending"] { border-left: 3px solid var(--color-caution); }
+.arcpass-approval-list article[data-status="approved"] { border-left: 3px solid var(--color-success); }
+.arcpass-approval-list article[data-status="expired"] { border-left: 3px solid var(--color-danger); }
+.arcpass-approval-list span, .arcpass-approval-list strong, .arcpass-approval-list small { display: block; }
+.arcpass-approval-list span { color: var(--color-primary); font-size: 0.58rem; font-weight: 900; text-transform: uppercase; }
+.arcpass-approval-list strong { color: var(--color-on-surface); font-size: 0.7rem; margin-top: 3px; }
+.arcpass-approval-list small { color: var(--color-on-surface-variant); font-size: 0.58rem; margin-top: 3px; }
+.arcpass-approval-list > article > div:nth-child(2) { text-align: right; }
+.arcpass-team-empty { align-items: center; background: color-mix(in srgb, var(--color-surface-low) 74%, transparent); border: 1px dashed var(--color-outline-variant); border-radius: 11px; display: grid; gap: 13px; grid-template-columns: 38px minmax(0, 1fr); padding: 16px; }
+.arcpass-team-empty > span { align-items: center; background: var(--color-primary-soft); border-radius: 50%; color: var(--color-primary); display: flex; font-size: 1rem; height: 38px; justify-content: center; }
+.arcpass-team-empty strong { color: var(--color-on-surface); font-size: 0.8rem; }
+.arcpass-team-empty p { color: var(--color-on-surface-variant); font-size: 0.65rem; line-height: 1.5; margin: 4px 0 0; }
+
+.arcpass-approval-page { min-height: 100vh; padding: 22px clamp(18px, 4vw, 56px) 64px; }
+.arcpass-approval-nav { align-items: center; display: flex; justify-content: space-between; margin: 0 auto; max-width: 1180px; }
+.arcpass-approval-nav a { color: inherit; text-decoration: none; }
+.arcpass-approval-nav > span { background: var(--color-primary-soft); border-radius: 999px; color: var(--color-primary); font-size: 0.65rem; font-weight: 900; padding: 7px 10px; }
+.arcpass-approval-shell { display: grid; gap: 24px; margin: 64px auto 0; max-width: 1040px; }
+.arcpass-approval-hero { margin: 0 auto; max-width: 720px; text-align: center; }
+.arcpass-approval-hero > span { align-items: center; background: var(--color-primary-soft); border-radius: 50%; color: var(--color-primary); display: flex; font-size: 1.25rem; font-weight: 900; height: 58px; justify-content: center; margin: 0 auto 18px; width: 58px; }
+.arcpass-approval-hero > span[data-status="approved"] { background: var(--color-success-soft); color: var(--color-success); }
+.arcpass-approval-hero > span[data-status="expired"] { background: var(--color-danger-soft); color: var(--color-danger); }
+.arcpass-approval-hero h1 { color: var(--color-on-surface); font-size: clamp(2rem, 5vw, 4rem); letter-spacing: -0.055em; margin: 8px 0 14px; }
+.arcpass-approval-hero > p:last-child { color: var(--color-on-surface-variant); font-size: 0.82rem; line-height: 1.65; margin: 0 auto; max-width: 650px; }
+.arcpass-approval-layout { display: grid; gap: 14px; grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr); }
+.arcpass-approval-review, .arcpass-approval-action { display: grid; gap: 16px; }
+.arcpass-approval-status { align-items: center; display: flex; gap: 12px; justify-content: space-between; }
+.arcpass-approval-status span { background: var(--color-caution-soft); border-radius: 999px; color: var(--color-caution); font-size: 0.62rem; font-weight: 900; padding: 6px 9px; }
+.arcpass-approval-status strong { color: var(--color-on-surface); font-family: var(--font-mono); font-size: 0.72rem; }
+.arcpass-approval-invoices { display: grid; gap: 7px; }
+.arcpass-approval-invoices article { align-items: center; background: var(--color-surface); border: 1px solid var(--color-outline-variant); border-radius: 9px; display: flex; gap: 14px; justify-content: space-between; padding: 11px; }
+.arcpass-approval-invoices strong, .arcpass-approval-invoices small { display: block; }
+.arcpass-approval-invoices strong { color: var(--color-on-surface); font-size: 0.7rem; }
+.arcpass-approval-invoices small { color: var(--color-on-surface-variant); font-family: var(--font-mono); font-size: 0.57rem; margin-top: 3px; }
+.arcpass-approval-invoices b { color: var(--color-on-surface); flex-shrink: 0; font-family: var(--font-mono); font-size: 0.76rem; }
+.arcpass-approval-action h3 { color: var(--color-on-surface); font-size: 1rem; margin: 0; }
+.arcpass-approval-action > p:not(.arcpass-panel-label):not(.arcpass-error) { color: var(--color-on-surface-variant); font-size: 0.69rem; line-height: 1.6; margin: 0; }
+.arcpass-approval-signers { border-top: 1px solid var(--color-outline-variant); display: grid; gap: 7px; padding-top: 12px; }
+.arcpass-approval-signers > span { color: var(--color-on-surface-variant); font-size: 0.6rem; font-weight: 800; }
+.arcpass-approval-signers strong { color: var(--color-success); font-family: var(--font-mono); font-size: 0.64rem; }
+.arcpass-approval-signers small { color: var(--color-on-surface-variant); display: block; font-family: var(--font-sans); font-size: 0.56rem; margin: 3px 0 0 14px; }
+.arcpass-approval-unavailable { margin: 80px auto 0; max-width: 620px; text-align: center; }
+.arcpass-approval-unavailable h1 { color: var(--color-on-surface); }
+.arcpass-approval-unavailable .arcpass-dark-button { display: inline-flex; margin-top: 14px; text-decoration: none; }
+
 @media (max-width: 980px) {
-  .arcpass-plan-metrics, .arcpass-recurring-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .arcpass-plan-workbench, .arcpass-recurring-workbench { grid-template-columns: 1fr; }
+  .arcpass-plan-metrics, .arcpass-recurring-metrics, .arcpass-team-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .arcpass-plan-workbench, .arcpass-recurring-workbench, .arcpass-team-grid, .arcpass-approval-layout { grid-template-columns: 1fr; }
+  .arcpass-role-matrix { grid-template-columns: 1fr; }
+  .arcpass-role-matrix > div:last-child { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .arcpass-team-add { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .arcpass-installment-controls, .arcpass-recurring-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .arcpass-installment-controls > div:last-child, .arcpass-recurring-controls > div:last-child { grid-column: span 2; }
 }
 
 @media (max-width: 620px) {
-  .arcpass-payment-terms-heading, .arcpass-plan-heading, .arcpass-recurring-heading { align-items: stretch; flex-direction: column; }
+  .arcpass-payment-terms-heading, .arcpass-plan-heading, .arcpass-recurring-heading, .arcpass-team-heading { align-items: stretch; flex-direction: column; }
   .arcpass-payment-terms-toggle { width: 100%; }
   .arcpass-payment-terms-toggle button { flex: 1; }
-  .arcpass-installment-controls, .arcpass-recurring-controls, .arcpass-plan-metrics, .arcpass-recurring-metrics, .arcpass-plan-balance, .arcpass-recurring-balance { grid-template-columns: 1fr; }
+  .arcpass-installment-controls, .arcpass-recurring-controls, .arcpass-plan-metrics, .arcpass-recurring-metrics, .arcpass-team-metrics, .arcpass-plan-balance, .arcpass-recurring-balance, .arcpass-role-matrix > div:last-child, .arcpass-team-add, .arcpass-policy-fields { grid-template-columns: 1fr; }
   .arcpass-installment-controls > div:last-child, .arcpass-recurring-controls > div:last-child { grid-column: span 1; }
   .arcpass-plan-detail-head, .arcpass-recurring-detail-head { align-items: flex-start; flex-direction: column; }
   .arcpass-plan-installments article, .arcpass-recurring-cycles article { align-items: start; grid-template-columns: 25px minmax(0, 1fr); }
@@ -2222,4 +2318,12 @@ button:disabled {
   .arcpass-plan-actions .arcpass-dark-button, .arcpass-plan-actions .arcpass-ghost-button, .arcpass-recurring-actions .arcpass-dark-button, .arcpass-recurring-actions .arcpass-ghost-button { width: 100%; }
   .arcpass-plan-empty, .arcpass-recurring-empty { align-items: start; grid-template-columns: 1fr; }
   .arcpass-recurring-next { align-items: flex-start; flex-direction: column; }
+  .arcpass-policy-fields label:last-child { grid-column: span 1; }
+  .arcpass-team-members article { align-items: start; grid-template-columns: 30px minmax(0, 1fr) auto; }
+  .arcpass-team-members article select { grid-column: 2 / -1; width: 100%; }
+  .arcpass-approval-list article { align-items: stretch; grid-template-columns: 1fr; }
+  .arcpass-approval-list > article > div:nth-child(2) { text-align: left; }
+  .arcpass-approval-list .arcpass-ghost-button { width: 100%; }
+  .arcpass-approval-shell { margin-top: 38px; }
+  .arcpass-approval-invoices article, .arcpass-approval-status { align-items: flex-start; flex-direction: column; }
 }

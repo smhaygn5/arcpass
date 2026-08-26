@@ -14,9 +14,10 @@ ArcPass combines a merchant passport with buyer-readable stablecoin payment link
 - Payment Intent Center derived from registered invoices and verified Arc receipts, with action queues and lifecycle visibility
 - Partial payments through exact installment schedules, where every stage is a separately locked invoice with its own verified Arc receipt
 - Merchant-approved recurring invoice schedules with cycle tracking and no automatic wallet charges
+- Wallet-bound team roles and threshold approval policies with gas-free, invoice-specific approval signatures
 - Source USDC, native gas, route fee, and invoice-state preflight before any bridge transaction is requested
 - Local invoice and receipt cache for fast merchant access
-- PostgreSQL-backed invoices, receipts, merchant sessions, challenges, and rate limits
+- PostgreSQL-backed invoices, receipts, team policies, approval signatures, merchant sessions, challenges, and rate limits
 - Payment blocked until the invoice is confirmed in the ArcPass server registry
 - One Arc transaction hash and one verified receipt per invoice
 - Verified merchant domains rechecked against public DNS, wallet, and ArcPass manifest data

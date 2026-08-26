@@ -6,6 +6,7 @@ import { getRequestOrigin } from "@/lib/site";
 import { verifyMerchantDomain } from "@/lib/server-domain-verification";
 import { requireMerchantSession } from "@/lib/server-merchant-session";
 import { loadServerInvoices, saveServerInvoice } from "@/lib/server-invoices";
+import { approvalRequiredForInvoices } from "@/lib/server-approvals";
 
 export const runtime = "nodejs";
 
@@ -71,6 +72,14 @@ export async function POST(req: NextRequest) {
         { status: 409 },
       );
     }
+  }
+
+  const approval = await approvalRequiredForInvoices(validInvoices);
+  if (approval.required) {
+    return NextResponse.json(
+      { error: `Team approval is required before registering this ${approval.triggeredTokens.join("/")} invoice operation.` },
+      { status: 409 },
+    );
   }
 
   const origin = getRequestOrigin(req.nextUrl.origin);
