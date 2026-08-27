@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { getAddress, isAddress } from "viem";
 import { decodeInvoicePayload, invoiceExpired, type ArcPassInvoice } from "@/lib/arcpass";
 import { clientKey, rateLimit, tooManyRequests } from "@/lib/rate-limit";
@@ -7,6 +7,7 @@ import { verifyMerchantDomain } from "@/lib/server-domain-verification";
 import { requireMerchantSession } from "@/lib/server-merchant-session";
 import { loadServerInvoices, saveServerInvoice } from "@/lib/server-invoices";
 import { approvalRequiredForInvoices } from "@/lib/server-approvals";
+import { publishServerWebhookEvent } from "@/lib/server-webhooks";
 
 export const runtime = "nodejs";
 
@@ -84,5 +85,18 @@ export async function POST(req: NextRequest) {
 
   const origin = getRequestOrigin(req.nextUrl.origin);
   const savedInvoices = await Promise.all(validInvoices.map((item) => saveServerInvoice({ invoice: item, origin })));
+  after(() => Promise.all(savedInvoices.map((item) => publishServerWebhookEvent({
+    data: {
+      amount: item.invoice.amount,
+      description: item.invoice.description,
+      expiresAt: item.invoice.expiresAt,
+      invoiceId: item.invoice.invoiceId,
+      link: item.link,
+      token: item.invoice.token,
+    },
+    merchant: getAddress(item.invoice.merchant.walletAddress),
+    subjectId: item.invoice.invoiceId,
+    type: "invoice.created",
+  }))));
   return NextResponse.json({ invoice: savedInvoices[0], invoices: savedInvoices, saved: true });
 }

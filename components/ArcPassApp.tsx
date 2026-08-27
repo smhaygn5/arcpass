@@ -72,6 +72,7 @@ import {
 } from "@/lib/recurring-invoices";
 import { TeamAccessCenter } from "@/components/TeamAccessCenter";
 import { isApprovalRequestView, type ApprovalRequestView } from "@/lib/team-policies";
+import { DeveloperCenter } from "@/components/DeveloperCenter";
 
 const WORKSPACE_TABS = [
   { id: "dashboard", label: "Dashboard" },
@@ -81,6 +82,7 @@ const WORKSPACE_TABS = [
   { id: "payments", label: "Payments" },
   { id: "intents", label: "Intents" },
   { id: "team", label: "Team" },
+  { id: "developers", label: "Developers" },
   { id: "receipts", label: "Receipts" },
 ] as const;
 const INVOICE_FILTERS = [
@@ -571,6 +573,9 @@ export function ArcPassApp() {
             <button type="button" onClick={() => selectTab("team")} className="arcpass-ghost-button">
               Team
             </button>
+            <button type="button" onClick={() => selectTab("developers")} className="arcpass-ghost-button">
+              Developers
+            </button>
             <button type="button" onClick={() => selectTab("receipts")} className="arcpass-ghost-button">
               Receipts
             </button>
@@ -736,6 +741,7 @@ export function ArcPassApp() {
           />
         ) : null}
         {activeTab === "team" ? <TeamAccessCenter refreshKey={approvalRefreshKey} walletAddress={walletAddress} /> : null}
+        {activeTab === "developers" ? <DeveloperCenter walletAddress={walletAddress} /> : null}
 
         {error ? (
           <p className="arcpass-error" role="alert">

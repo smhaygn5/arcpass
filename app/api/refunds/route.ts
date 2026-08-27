@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { getAddress, isAddress, verifyMessage, type Hex } from "viem";
 import { decodeInvoicePayload } from "@/lib/arcpass";
 import { clientKey, rateLimit, tooManyRequests } from "@/lib/rate-limit";
@@ -7,6 +7,7 @@ import { normalizeRefundReason, refundRequestMessage } from "@/lib/refunds";
 import { requireMerchantSession } from "@/lib/server-merchant-session";
 import { findServerReceiptByTxHash } from "@/lib/server-receipts";
 import { createServerRefundRequest, findServerRefundRequest, loadServerRefundRequests, updateServerRefundRequest } from "@/lib/server-refunds";
+import { publishServerWebhookEvent } from "@/lib/server-webhooks";
 
 export const runtime = "nodejs";
 const TX_HASH = /^0x[0-9a-fA-F]{64}$/;
@@ -44,7 +45,23 @@ export async function POST(req: NextRequest) {
     const message = refundRequestMessage({ invoiceId: receipt.invoiceId, payer: receipt.payer, reason, txHash: receipt.txHash });
     const verified = await verifyMessage({ address: receipt.payer, message, signature: signature as Hex });
     if (!verified) return NextResponse.json({ error: "Refund request must be signed by the payer wallet." }, { status: 401 });
-    return NextResponse.json({ refund: await createServerRefundRequest(receipt, reason) });
+    const refund = await createServerRefundRequest(receipt, reason);
+    after(() => publishServerWebhookEvent({
+      data: {
+        amount: refund.amount,
+        invoiceId: refund.invoiceId,
+        payer: refund.payer,
+        reason: refund.reason,
+        requestId: refund.requestId,
+        status: refund.status,
+        token: refund.token,
+        txHash: refund.txHash,
+      },
+      merchant: refund.merchant,
+      subjectId: refund.requestId,
+      type: "refund.requested",
+    }));
+    return NextResponse.json({ refund });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Refund request could not be created." }, { status: 400 });
   }
@@ -62,5 +79,17 @@ export async function PATCH(req: NextRequest) {
   if (!session.ok) return NextResponse.json({ error: session.error }, { status: session.status });
   const refund = await updateServerRefundRequest({ merchant: getAddress(merchant), requestId, status });
   if (!refund) return NextResponse.json({ error: "Refund request was not found." }, { status: 404 });
+  after(() => publishServerWebhookEvent({
+    data: {
+      invoiceId: refund.invoiceId,
+      requestId: refund.requestId,
+      status: refund.status,
+      txHash: refund.txHash,
+      updatedAt: refund.updatedAt,
+    },
+    merchant: refund.merchant,
+    subjectId: `${refund.requestId}:${refund.status}`,
+    type: "refund.updated",
+  }));
   return NextResponse.json({ refund });
 }

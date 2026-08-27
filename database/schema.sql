@@ -90,6 +90,41 @@ create table if not exists arcpass_approval_signatures (
   approved_at timestamptz not null,
   primary key (request_id, approver)
 );
+
+create table if not exists arcpass_webhook_endpoints (
+  endpoint_id text primary key,
+  merchant text not null,
+  url text not null,
+  events text[] not null,
+  status text not null check (status in ('active', 'paused')),
+  secret_ciphertext text not null,
+  secret_hint text not null,
+  created_at timestamptz not null,
+  updated_at timestamptz not null,
+  unique (merchant, url)
+);
+
+create index if not exists arcpass_webhook_endpoints_merchant_created_idx
+  on arcpass_webhook_endpoints ((lower(merchant)), created_at desc);
+
+create table if not exists arcpass_webhook_deliveries (
+  delivery_id text primary key,
+  endpoint_id text not null references arcpass_webhook_endpoints(endpoint_id) on delete cascade,
+  event_id text not null,
+  event_type text not null,
+  status text not null check (status in ('pending', 'delivered', 'failed')),
+  event jsonb not null,
+  attempt_count integer not null default 0,
+  response_status integer,
+  last_error text,
+  created_at timestamptz not null,
+  delivered_at timestamptz,
+  unique (endpoint_id, event_id)
+);
+
+create index if not exists arcpass_webhook_deliveries_endpoint_created_idx
+  on arcpass_webhook_deliveries (endpoint_id, created_at desc);
+
 -- ArcPass is server-only. Block Supabase Data API roles even if public schema
 -- grants are enabled at the project level.
 alter table public.arcpass_invoices enable row level security;
@@ -101,6 +136,8 @@ alter table public.arcpass_rate_limits enable row level security;
 alter table public.arcpass_team_workspaces enable row level security;
 alter table public.arcpass_approval_requests enable row level security;
 alter table public.arcpass_approval_signatures enable row level security;
+alter table public.arcpass_webhook_endpoints enable row level security;
+alter table public.arcpass_webhook_deliveries enable row level security;
 
 revoke all privileges on table
   public.arcpass_invoices,
@@ -111,5 +148,7 @@ revoke all privileges on table
   public.arcpass_rate_limits,
   public.arcpass_team_workspaces,
   public.arcpass_approval_requests,
-  public.arcpass_approval_signatures
+  public.arcpass_approval_signatures,
+  public.arcpass_webhook_endpoints,
+  public.arcpass_webhook_deliveries
 from anon, authenticated, public;

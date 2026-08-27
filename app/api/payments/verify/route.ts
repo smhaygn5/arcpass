@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import {
   createPublicClient,
   getAddress,
@@ -24,6 +24,7 @@ import {
   ReceiptAssignmentConflictError,
   saveServerReceipt,
 } from "@/lib/server-receipts";
+import { publishServerWebhookEvent } from "@/lib/server-webhooks";
 
 export const runtime = "nodejs";
 
@@ -219,6 +220,20 @@ export async function POST(req: NextRequest) {
         receipt: verifiedReceipt,
       });
       serverSaved = true;
+      after(() => publishServerWebhookEvent({
+        data: {
+          amount: verifiedReceipt.amount,
+          blockNumber: verifiedReceipt.blockNumber,
+          explorerUrl: verifiedReceipt.explorerUrl,
+          invoiceId: verifiedReceipt.invoiceId,
+          payer: verifiedReceipt.payer,
+          token: verifiedReceipt.token,
+          txHash: verifiedReceipt.txHash,
+        },
+        merchant: expectedMerchant,
+        subjectId: verifiedReceipt.txHash,
+        type: "payment.verified",
+      }));
     } catch (err) {
       if (err instanceof ReceiptAssignmentConflictError) {
         return transactionAssignmentConflict(txHash);

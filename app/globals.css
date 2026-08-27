@@ -2063,6 +2063,99 @@ button:disabled {
   }
 }
 
+.arcpass-developer-center { display: grid; gap: 18px; }
+.arcpass-developer-heading { align-items: flex-start; display: flex; gap: 20px; justify-content: space-between; }
+.arcpass-developer-heading h3 { color: var(--color-on-surface); font-size: 1.2rem; margin: 5px 0 7px; }
+.arcpass-developer-heading p:not(.arcpass-panel-label) { color: var(--color-on-surface-variant); font-size: 0.74rem; line-height: 1.55; margin: 0; max-width: 720px; }
+.arcpass-developer-metrics { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.arcpass-developer-metrics > div { background: color-mix(in srgb, var(--color-surface-high) 72%, var(--color-surface)); border: 1px solid var(--color-outline-variant); border-radius: 11px; display: grid; gap: 5px; padding: 13px; }
+.arcpass-developer-metrics > div[data-tone="primary"] { background: var(--color-primary-soft); border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-outline-variant)); }
+.arcpass-developer-metrics > div[data-tone="success"] { background: var(--color-success-soft); border-color: color-mix(in srgb, var(--color-success) 22%, var(--color-outline-variant)); }
+.arcpass-developer-metrics > div[data-tone="caution"] { background: var(--color-caution-soft); border-color: color-mix(in srgb, var(--color-caution) 24%, var(--color-outline-variant)); }
+.arcpass-developer-metrics span, .arcpass-developer-metrics small { color: var(--color-on-surface-variant); font-size: 0.62rem; }
+.arcpass-developer-metrics strong { color: var(--color-on-surface); font-family: var(--font-mono); font-size: 1rem; }
+.arcpass-developer-grid { display: grid; gap: 12px; grid-template-columns: minmax(0, 1.05fr) minmax(340px, 0.95fr); }
+.arcpass-developer-section { background: color-mix(in srgb, var(--color-surface-high) 58%, var(--color-surface)); border: 1px solid var(--color-outline-variant); border-radius: 12px; display: grid; gap: 14px; padding: 15px; }
+.arcpass-developer-section h3 { color: var(--color-on-surface); font-size: 0.95rem; margin: 4px 0 5px; }
+.arcpass-developer-section p:not(.arcpass-panel-label) { color: var(--color-on-surface-variant); font-size: 0.67rem; line-height: 1.55; margin: 0; }
+.arcpass-webhook-url { display: grid; gap: 6px; }
+.arcpass-webhook-url span, .arcpass-webhook-builder legend { color: var(--color-on-surface-variant); font-size: 0.62rem; font-weight: 850; }
+.arcpass-webhook-url input { background: var(--color-surface); border: 1px solid var(--color-outline-variant); border-radius: 9px; color: var(--color-on-surface); font: inherit; font-family: var(--font-mono); font-size: 0.65rem; min-height: 42px; outline: none; padding: 0 11px; width: 100%; }
+.arcpass-webhook-url input:focus { border-color: var(--color-primary); }
+.arcpass-webhook-builder fieldset { border: 0; margin: 0; padding: 0; }
+.arcpass-webhook-events { display: grid; gap: 7px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 7px; }
+.arcpass-webhook-events label { align-items: center; background: var(--color-surface); border: 1px solid var(--color-outline-variant); border-radius: 9px; cursor: pointer; display: grid; gap: 3px 8px; grid-template-columns: auto minmax(0, 1fr); padding: 9px; }
+.arcpass-webhook-events input { accent-color: var(--color-primary); grid-row: span 2; }
+.arcpass-webhook-events span { color: var(--color-on-surface); font-size: 0.65rem; font-weight: 800; }
+.arcpass-webhook-events small { color: var(--color-on-surface-variant); font-family: var(--font-mono); font-size: 0.54rem; overflow-wrap: anywhere; }
+.arcpass-code-block { background: #080c18; border: 1px solid color-mix(in srgb, var(--color-primary) 20%, #20263a); border-radius: 10px; color: #dbe5ff; min-width: 0; overflow: hidden; }
+.arcpass-code-block > div { align-items: center; background: #11172a; display: flex; justify-content: space-between; padding: 8px 11px; }
+.arcpass-code-block span { color: #aebbd8; font-size: 0.58rem; font-weight: 800; }
+.arcpass-code-block button { background: transparent; border: 0; color: #8ab0ff; cursor: pointer; font-size: 0.58rem; font-weight: 850; }
+.arcpass-code-block pre { font-family: var(--font-mono); font-size: 0.57rem; line-height: 1.55; margin: 0; max-height: 245px; overflow: auto; padding: 12px; white-space: pre; }
+.arcpass-webhook-docs dl { display: grid; gap: 6px; margin: 0; }
+.arcpass-webhook-docs dl > div { align-items: center; display: flex; gap: 12px; justify-content: space-between; }
+.arcpass-webhook-docs dt { color: var(--color-on-surface-variant); font-size: 0.58rem; }
+.arcpass-webhook-docs dd { color: var(--color-on-surface); font-family: var(--font-mono); font-size: 0.58rem; margin: 0; }
+.arcpass-webhook-secret { align-items: center; background: color-mix(in srgb, var(--color-success-soft) 64%, var(--color-surface)); border: 1px solid color-mix(in srgb, var(--color-success) 28%, var(--color-outline-variant)); border-radius: 11px; display: flex; gap: 18px; justify-content: space-between; padding: 14px; }
+.arcpass-webhook-secret span, .arcpass-webhook-secret strong, .arcpass-webhook-secret p { display: block; }
+.arcpass-webhook-secret span { color: var(--color-success); font-size: 0.6rem; font-weight: 900; }
+.arcpass-webhook-secret strong { color: var(--color-on-surface); font-family: var(--font-mono); font-size: 0.67rem; margin-top: 5px; overflow-wrap: anywhere; }
+.arcpass-webhook-secret p { color: var(--color-on-surface-variant); font-size: 0.6rem; margin: 5px 0 0; }
+.arcpass-webhook-secret > div:last-child { align-items: center; display: flex; flex-shrink: 0; gap: 8px; }
+.arcpass-endpoint-list, .arcpass-delivery-log { border-top: 1px solid var(--color-outline-variant); display: grid; gap: 12px; padding-top: 16px; }
+.arcpass-developer-section-head { align-items: flex-start; display: flex; gap: 12px; justify-content: space-between; }
+.arcpass-developer-section-head span, .arcpass-developer-section-head strong { display: block; }
+.arcpass-developer-section-head span { color: var(--color-on-surface-variant); font-size: 0.62rem; font-weight: 800; }
+.arcpass-developer-section-head strong { color: var(--color-on-surface); font-size: 0.82rem; margin-top: 3px; }
+.arcpass-developer-section-head > small { color: var(--color-on-surface-variant); font-size: 0.62rem; }
+.arcpass-endpoint-list > div:last-child, .arcpass-delivery-log > div:last-child { display: grid; gap: 8px; }
+.arcpass-endpoint-list article { align-items: center; background: color-mix(in srgb, var(--color-surface-low) 72%, transparent); border: 1px solid var(--color-outline-variant); border-left: 3px solid var(--color-success); border-radius: 10px; display: grid; gap: 12px; grid-template-columns: minmax(240px, 1fr) minmax(220px, 1fr) auto; padding: 12px; }
+.arcpass-endpoint-list article[data-status="paused"] { border-left-color: var(--color-caution); }
+.arcpass-endpoint-identity { align-items: center; display: grid; gap: 10px; grid-template-columns: 30px minmax(0, 1fr); min-width: 0; }
+.arcpass-endpoint-identity > span { align-items: center; background: var(--color-primary-soft); border-radius: 50%; color: var(--color-primary); display: flex; font-size: 0.85rem; height: 30px; justify-content: center; }
+.arcpass-endpoint-identity strong, .arcpass-endpoint-identity small { display: block; overflow-wrap: anywhere; }
+.arcpass-endpoint-identity strong { color: var(--color-on-surface); font-family: var(--font-mono); font-size: 0.63rem; }
+.arcpass-endpoint-identity small { color: var(--color-on-surface-variant); font-size: 0.55rem; margin-top: 4px; }
+.arcpass-endpoint-events { display: flex; flex-wrap: wrap; gap: 5px; }
+.arcpass-endpoint-events span { background: var(--color-primary-soft); border-radius: 999px; color: var(--color-primary); font-size: 0.52rem; font-weight: 800; padding: 4px 6px; }
+.arcpass-endpoint-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.arcpass-endpoint-actions em { color: var(--color-success); font-size: 0.56rem; font-style: normal; font-weight: 900; text-transform: uppercase; }
+.arcpass-endpoint-list article[data-status="paused"] em { color: var(--color-caution); }
+.arcpass-endpoint-actions button { background: var(--color-surface); border: 1px solid var(--color-outline-variant); border-radius: 8px; color: var(--color-on-surface); cursor: pointer; font-size: 0.56rem; font-weight: 800; min-height: 30px; padding: 0 8px; }
+.arcpass-endpoint-actions button:last-child { color: var(--color-danger); }
+.arcpass-delivery-log article { align-items: center; background: color-mix(in srgb, var(--color-surface-low) 72%, transparent); border: 1px solid var(--color-outline-variant); border-radius: 10px; display: grid; gap: 10px; grid-template-columns: 8px minmax(170px, 0.85fr) minmax(110px, 0.4fr) minmax(190px, 1fr) auto; padding: 11px; }
+.arcpass-delivery-dot { background: var(--color-caution); border-radius: 50%; height: 8px; width: 8px; }
+.arcpass-delivery-log article[data-status="delivered"] .arcpass-delivery-dot { background: var(--color-success); }
+.arcpass-delivery-log article[data-status="failed"] .arcpass-delivery-dot { background: var(--color-danger); }
+.arcpass-delivery-log strong, .arcpass-delivery-log span, .arcpass-delivery-log small { display: block; }
+.arcpass-delivery-log strong { color: var(--color-on-surface); font-size: 0.66rem; }
+.arcpass-delivery-log span { color: var(--color-on-surface); font-family: var(--font-mono); font-size: 0.58rem; }
+.arcpass-delivery-log small { color: var(--color-on-surface-variant); font-size: 0.54rem; margin-top: 3px; overflow-wrap: anywhere; }
+.arcpass-developer-empty { align-items: center; background: color-mix(in srgb, var(--color-surface-low) 74%, transparent); border: 1px dashed var(--color-outline-variant); border-radius: 11px; display: grid; gap: 13px; grid-template-columns: 40px minmax(0, 1fr); padding: 16px; }
+.arcpass-developer-empty > span { align-items: center; background: var(--color-primary-soft); border-radius: 50%; color: var(--color-primary); display: flex; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 900; height: 40px; justify-content: center; }
+.arcpass-developer-empty strong { color: var(--color-on-surface); font-size: 0.8rem; }
+.arcpass-developer-empty p { color: var(--color-on-surface-variant); font-size: 0.65rem; line-height: 1.5; margin: 4px 0 0; }
+
+@media (max-width: 1080px) {
+  .arcpass-developer-grid { grid-template-columns: 1fr; }
+  .arcpass-endpoint-list article { grid-template-columns: minmax(0, 1fr) auto; }
+  .arcpass-endpoint-events { grid-column: 1 / -1; grid-row: 2; }
+  .arcpass-delivery-log article { grid-template-columns: 8px minmax(0, 1fr) minmax(100px, auto) auto; }
+  .arcpass-delivery-log article > div:nth-child(4) { grid-column: 2 / -1; }
+}
+
+@media (max-width: 700px) {
+  .arcpass-developer-heading, .arcpass-webhook-secret { align-items: stretch; flex-direction: column; }
+  .arcpass-developer-metrics, .arcpass-webhook-events { grid-template-columns: 1fr; }
+  .arcpass-webhook-secret > div:last-child { align-items: stretch; flex-direction: column; }
+  .arcpass-endpoint-list article, .arcpass-delivery-log article { align-items: stretch; grid-template-columns: 1fr; }
+  .arcpass-endpoint-events, .arcpass-delivery-log article > div:nth-child(4) { grid-column: auto; grid-row: auto; }
+  .arcpass-endpoint-actions { justify-content: flex-start; }
+  .arcpass-delivery-dot { display: none; }
+  .arcpass-delivery-log .arcpass-ghost-button { width: 100%; }
+}
+
 .arcpass-intents-stack { display: grid; gap: 18px; }
 .arcpass-payment-terms { background: color-mix(in srgb, var(--color-primary-soft) 30%, var(--color-surface)); border: 1px solid color-mix(in srgb, var(--color-primary) 15%, var(--color-outline-variant)); border-radius: 14px; display: grid; gap: 16px; margin: 18px 0; padding: 18px; }
 .arcpass-payment-terms-heading { align-items: flex-start; display: flex; gap: 18px; justify-content: space-between; }

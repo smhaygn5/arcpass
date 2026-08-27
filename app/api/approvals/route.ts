@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { getAddress, isAddress } from "viem";
 import { decodeInvoicePayload, type ArcPassInvoice } from "@/lib/arcpass";
 import { clientKey, rateLimit, tooManyRequests } from "@/lib/rate-limit";
@@ -6,6 +6,7 @@ import { approveServerRequest, loadServerApprovalRequest, loadServerApprovalRequ
 import { requireMerchantSession } from "@/lib/server-merchant-session";
 import { getRequestOrigin } from "@/lib/site";
 import { approvalRequestMessage, type ApprovalRequest } from "@/lib/team-policies";
+import { publishServerWebhookEvent } from "@/lib/server-webhooks";
 
 export const runtime = "nodejs";
 
@@ -39,6 +40,29 @@ export async function POST(req: NextRequest) {
         signature: typeof body.signature === "string" ? body.signature : "",
       });
       if (!request) throw new Error("Approval request was not found.");
+      if (request.status === "approved") {
+        after(() => Promise.all([
+          publishServerWebhookEvent({
+            data: {
+              approvals: request.approvals.length,
+              invoices: request.invoices,
+              operationLabel: request.operationLabel,
+              requestId: request.requestId,
+              requiredApprovals: request.requiredApprovals,
+              totals: request.totals,
+            },
+            merchant: request.merchant,
+            subjectId: request.requestId,
+            type: "approval.completed",
+          }),
+          ...request.invoices.map((invoice) => publishServerWebhookEvent({
+            data: { ...invoice, approvalRequestId: request.requestId },
+            merchant: request.merchant,
+            subjectId: invoice.invoiceId,
+            type: "invoice.created",
+          })),
+        ]));
+      }
       return NextResponse.json({ approved: request.status === "approved", request: publicApprovalRequest(request) });
     }
 
@@ -51,7 +75,34 @@ export async function POST(req: NextRequest) {
     const session = await requireMerchantSession(req, merchant);
     if (!session.ok) return NextResponse.json({ error: session.error }, { status: session.status });
     const result = await submitInvoicesForApproval({ invoices: validInvoices, operationLabel: typeof body?.operationLabel === "string" ? body.operationLabel : "Invoice issuance", origin: getRequestOrigin(req.nextUrl.origin), payloads });
-    if (result.status === "registered") return NextResponse.json({ invoices: result.invoices, saved: true, status: result.status });
+    if (result.status === "registered") {
+      after(() => Promise.all(result.invoices.map((item) => publishServerWebhookEvent({
+        data: {
+          amount: item.invoice.amount,
+          description: item.invoice.description,
+          expiresAt: item.invoice.expiresAt,
+          invoiceId: item.invoice.invoiceId,
+          link: item.link,
+          token: item.invoice.token,
+        },
+        merchant: getAddress(item.invoice.merchant.walletAddress),
+        subjectId: item.invoice.invoiceId,
+        type: "invoice.created",
+      }))));
+      return NextResponse.json({ invoices: result.invoices, saved: true, status: result.status });
+    }
+    after(() => publishServerWebhookEvent({
+      data: {
+        invoices: result.request.invoices,
+        operationLabel: result.request.operationLabel,
+        requestId: result.request.requestId,
+        requiredApprovals: result.request.requiredApprovals,
+        totals: result.request.totals,
+      },
+      merchant: result.request.merchant,
+      subjectId: result.request.requestId,
+      type: "approval.requested",
+    }));
     return NextResponse.json({ request: publicApprovalRequest(result.request), saved: false, status: result.status });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Approval operation failed." }, { status: 400 });
