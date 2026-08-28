@@ -41,7 +41,7 @@ import {
   type SavedReceipt,
   type VerifiedReceiptPayload,
 } from "@/lib/receipts";
-import { ensurePaymentNetwork, requestWalletAddress, signWalletMessage, walletErrorMessage } from "@/lib/wallet";
+import { ensurePaymentNetwork, requestVerifiedWalletAddressSelection, requestWalletAddress, signWalletMessage, walletErrorMessage } from "@/lib/wallet";
 import { escapeCsvCell, shortAddress } from "@/lib/format";
 import { invoiceLifecycle } from "@/lib/invoice-lifecycle";
 import {
@@ -73,6 +73,8 @@ import {
 import { TeamAccessCenter } from "@/components/TeamAccessCenter";
 import { isApprovalRequestView, type ApprovalRequestView } from "@/lib/team-policies";
 import { DeveloperCenter } from "@/components/DeveloperCenter";
+import { DisputeEvidenceRoom } from "@/components/DisputeEvidenceRoom";
+import { disputeDecisionMessage, normalizeDisputeStatement } from "@/lib/disputes";
 
 const WORKSPACE_TABS = [
   { id: "dashboard", label: "Dashboard" },
@@ -1765,6 +1767,8 @@ function PayerDirectoryPanel({ receiptHistory }: { receiptHistory: SavedReceipt[
 }
 
 function RefundRequestsPanel({ walletAddress }: { walletAddress: Address | null }) {
+  const [decisionNotes, setDecisionNotes] = useState<Record<string, string>>({});
+  const [decidingRequestId, setDecidingRequestId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [requests, setRequests] = useState<RefundRequest[]>([]);
@@ -1803,21 +1807,32 @@ function RefundRequestsPanel({ walletAddress }: { walletAddress: Address | null 
   async function decide(requestId: string, status: Exclude<RefundRequestStatus, "pending">) {
     if (!walletAddress) return;
     setError(null);
+    setDecidingRequestId(requestId);
     try {
-      const res = await fetch("/api/refunds", { body: JSON.stringify({ merchant: walletAddress, requestId, status }), headers: { "content-type": "application/json" }, method: "PATCH" });
+      const request = requests.find((item) => item.requestId === requestId);
+      if (!request) throw new Error("Refund request was not found.");
+      const note = normalizeDisputeStatement(decisionNotes[requestId] ?? "");
+      const signer = await requestVerifiedWalletAddressSelection();
+      if (signer.toLowerCase() !== walletAddress.toLowerCase()) throw new Error("Connect the merchant wallet that owns this request.");
+      const message = disputeDecisionMessage({ invoiceId: request.invoiceId, note, requestId, signer, status, txHash: request.txHash });
+      const signature = await signWalletMessage(signer, message);
+      const res = await fetch("/api/refunds", { body: JSON.stringify({ merchant: walletAddress, note, requestId, signature, signer, status }), headers: { "content-type": "application/json" }, method: "PATCH" });
       const body = (await res.json().catch(() => null)) as { error?: string; refund?: unknown } | null;
       if (!res.ok || !isRefundRequest(body?.refund)) throw new Error(body?.error || "Refund decision could not be saved.");
       setRequests((current) => current.map((item) => item.requestId === requestId ? body.refund as RefundRequest : item));
+      setDecisionNotes((current) => ({ ...current, [requestId]: "" }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Refund decision could not be saved.");
+      setError(walletErrorMessage(err));
+    } finally {
+      setDecidingRequestId(null);
     }
   }
 
   return (
     <section className="arcpass-panel arcpass-refund-merchant-panel">
-      <div className="arcpass-refund-panel-heading"><div><p className="arcpass-panel-label">Refund workflow</p><h3>Review payer-signed refund requests.</h3></div><button type="button" className="arcpass-ghost-button" onClick={loadRequests} disabled={!walletAddress || isLoading}>{isLoading ? "Refreshing" : "Refresh"}</button></div>
+      <div className="arcpass-refund-panel-heading"><div><p className="arcpass-panel-label">Dispute evidence room</p><h3>Review signed context before recording a decision.</h3></div><button type="button" className="arcpass-ghost-button" onClick={loadRequests} disabled={!walletAddress || isLoading}>{isLoading ? "Refreshing" : "Refresh"}</button></div>
       {!walletAddress ? <p className="arcpass-empty">Connect the merchant wallet to review refund requests.</p> : requests.length === 0 ? <p className="arcpass-empty">No refund requests yet.</p> : (
-        <div className="arcpass-refund-list">{requests.map((request) => <article key={request.requestId}><div className="arcpass-refund-item-head"><div><strong>{request.amount} {request.token}</strong><span>{request.invoiceId} · {shortAddress(request.payer)}</span></div><i data-status={request.status}>{request.status}</i></div><p>{request.reason}</p><small>Requested {new Date(request.createdAt).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}</small>{request.status === "pending" ? <div className="arcpass-refund-decision"><button type="button" onClick={() => decide(request.requestId, "declined")}>Decline</button><button type="button" onClick={() => decide(request.requestId, "approved")}>Approve</button></div> : <p className="arcpass-muted">Decision recorded. Token settlement remains a separate merchant action.</p>}</article>)}</div>
+        <div className="arcpass-refund-list">{requests.map((request) => <article key={request.requestId}><div className="arcpass-refund-item-head"><div><strong>{request.amount} {request.token}</strong><span>{request.invoiceId} · {shortAddress(request.payer)}</span></div><i data-status={request.status}>{request.status}</i></div><p>{request.reason}</p><small>Requested {new Date(request.createdAt).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}</small><DisputeEvidenceRoom request={request} viewerRole="merchant" walletAddress={walletAddress} onRequestUpdated={(updated) => setRequests((current) => current.map((item) => item.requestId === updated.requestId ? updated : item))} />{request.status === "pending" ? <div className="arcpass-refund-decision"><label><span>Decision note</span><textarea value={decisionNotes[request.requestId] ?? ""} onChange={(event) => setDecisionNotes((current) => ({ ...current, [request.requestId]: event.target.value }))} maxLength={1000} placeholder="Explain why this request is approved or declined." /></label><div><button type="button" disabled={decidingRequestId === request.requestId} onClick={() => decide(request.requestId, "declined")}>Decline with signature</button><button type="button" disabled={decidingRequestId === request.requestId} onClick={() => decide(request.requestId, "approved")}>Approve with signature</button></div></div> : request.decision ? <div className="arcpass-refund-decision-record"><strong>{request.decision.status} by {shortAddress(request.decision.signer)}</strong><p>{request.decision.note}</p><small>Signed {new Date(request.decision.decidedAt).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}</small></div> : <p className="arcpass-muted">Decision recorded. Token settlement remains a separate merchant action.</p>}</article>)}</div>
       )}
       {error ? <p className="arcpass-error" role="alert">{error}</p> : null}
     </section>

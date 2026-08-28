@@ -37,6 +37,20 @@ create table if not exists arcpass_refund_requests (
 create index if not exists arcpass_refunds_merchant_created_idx
   on arcpass_refund_requests ((lower(merchant)), created_at desc);
 
+create table if not exists arcpass_dispute_evidence (
+  evidence_id text primary key,
+  request_id text not null references arcpass_refund_requests(request_id) on delete cascade,
+  role text not null check (role in ('payer', 'merchant')),
+  signer text not null,
+  signature text not null,
+  evidence jsonb not null,
+  created_at timestamptz not null,
+  unique (request_id, signature)
+);
+
+create index if not exists arcpass_dispute_evidence_request_created_idx
+  on arcpass_dispute_evidence (request_id, created_at asc);
+
 create table if not exists arcpass_merchant_challenges (
   message_hash text primary key,
   address text not null,
@@ -130,6 +144,7 @@ create index if not exists arcpass_webhook_deliveries_endpoint_created_idx
 alter table public.arcpass_invoices enable row level security;
 alter table public.arcpass_receipts enable row level security;
 alter table public.arcpass_refund_requests enable row level security;
+alter table public.arcpass_dispute_evidence enable row level security;
 alter table public.arcpass_merchant_challenges enable row level security;
 alter table public.arcpass_merchant_sessions enable row level security;
 alter table public.arcpass_rate_limits enable row level security;
@@ -143,6 +158,7 @@ revoke all privileges on table
   public.arcpass_invoices,
   public.arcpass_receipts,
   public.arcpass_refund_requests,
+  public.arcpass_dispute_evidence,
   public.arcpass_merchant_challenges,
   public.arcpass_merchant_sessions,
   public.arcpass_rate_limits,

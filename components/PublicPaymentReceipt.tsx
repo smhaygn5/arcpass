@@ -5,9 +5,10 @@ import type { ArcPassInvoice } from "@/lib/arcpass";
 import { shortAddress } from "@/lib/format";
 import { isReceiptForInvoice, publicPaymentReceiptLink, type PublicPaymentReceipt } from "@/lib/payment-receipt";
 import { ArcPassMark } from "@/components/ArcPassMark";
-import { normalizeRefundReason, refundRequestMessage, type RefundRequestStatus } from "@/lib/refunds";
+import { isRefundRequest, normalizeRefundReason, refundRequestMessage, type RefundRequest } from "@/lib/refunds";
 import { requestVerifiedWalletAddressSelection, signWalletMessage, walletErrorMessage } from "@/lib/wallet";
 import { recurringSeriesTotal } from "@/lib/recurring-invoices";
+import { DisputeEvidenceRoom } from "@/components/DisputeEvidenceRoom";
 
 type ReceiptState = "loading" | "ready" | "unavailable";
 
@@ -16,7 +17,7 @@ export function PublicPaymentReceipt({ invoice, payload }: { invoice: ArcPassInv
   const [receipt, setReceipt] = useState<PublicPaymentReceipt | null>(null);
   const [refundError, setRefundError] = useState<string | null>(null);
   const [refundReason, setRefundReason] = useState("");
-  const [refundStatus, setRefundStatus] = useState<RefundRequestStatus | null>(null);
+  const [refundRequest, setRefundRequest] = useState<RefundRequest | null>(null);
   const [isRequestingRefund, setIsRequestingRefund] = useState(false);
   const [state, setState] = useState<ReceiptState>("loading");
   const checkoutLink = `/pay/${encodeURIComponent(payload)}`;
@@ -32,8 +33,8 @@ export function PublicPaymentReceipt({ invoice, payload }: { invoice: ArcPassInv
         }
         setReceipt(body.receipt);
         const refundRes = await fetch(`/api/refunds?txHash=${encodeURIComponent(body.receipt.txHash)}`, { cache: "no-store" });
-        const refundBody = (await refundRes.json().catch(() => null)) as { refund?: { status?: RefundRequestStatus } | null } | null;
-        if (refundRes.ok && refundBody?.refund?.status) setRefundStatus(refundBody.refund.status);
+        const refundBody = (await refundRes.json().catch(() => null)) as { refund?: unknown } | null;
+        if (refundRes.ok && isRefundRequest(refundBody?.refund)) setRefundRequest(refundBody.refund);
         setState("ready");
       } catch (err) {
         setError(err instanceof Error ? err.message : "The receipt could not be loaded.");
@@ -66,9 +67,9 @@ export function PublicPaymentReceipt({ invoice, payload }: { invoice: ArcPassInv
       const message = refundRequestMessage({ invoiceId: receipt.invoiceId, payer, reason, txHash: receipt.txHash });
       const signature = await signWalletMessage(payer, message);
       const res = await fetch("/api/refunds", { body: JSON.stringify({ reason, signature, txHash: receipt.txHash }), headers: { "content-type": "application/json" }, method: "POST" });
-      const body = (await res.json().catch(() => null)) as { error?: string; refund?: { status?: RefundRequestStatus } } | null;
-      if (!res.ok || !body?.refund?.status) throw new Error(body?.error || "Refund request could not be submitted.");
-      setRefundStatus(body.refund.status);
+      const body = (await res.json().catch(() => null)) as { error?: string; refund?: unknown } | null;
+      if (!res.ok || !isRefundRequest(body?.refund)) throw new Error(body?.error || "Refund request could not be submitted.");
+      setRefundRequest(body.refund);
       setRefundReason("");
     } catch (err) {
       setRefundError(walletErrorMessage(err));
@@ -106,11 +107,12 @@ export function PublicPaymentReceipt({ invoice, payload }: { invoice: ArcPassInv
               <div className="arcpass-receipt-actions"><button type="button" onClick={() => window.print()} className="arcpass-ghost-button">Print receipt</button><button type="button" onClick={shareReceipt} className="arcpass-dark-button">Share receipt</button></div>
             </section>
             <section className="arcpass-refund-request-card">
-              <div><p className="arcpass-panel-label">Refund request</p><h2>{refundStatus ? `Request ${refundStatus}` : "Need to request a refund?"}</h2><p>Policy: {invoice.merchant.refundPolicy}. A request records the payer’s signed intent; it does not move funds automatically.</p></div>
-              {refundStatus ? <span data-status={refundStatus}>{refundStatus}</span> : invoice.merchant.refundPolicy === "none" ? <p className="arcpass-checkout-warning">This merchant passport does not offer refund requests.</p> : (
+              <div><p className="arcpass-panel-label">Refund and evidence</p><h2>{refundRequest ? `Request ${refundRequest.status}` : "Need to request a refund?"}</h2><p>Policy: {invoice.merchant.refundPolicy}. A request records the payer’s signed intent; it does not move funds automatically.</p></div>
+              {refundRequest ? <span data-status={refundRequest.status}>{refundRequest.status}</span> : invoice.merchant.refundPolicy === "none" ? <p className="arcpass-checkout-warning">This merchant passport does not offer refund requests.</p> : (
                 <div className="arcpass-refund-form"><label><span>Reason for request</span><textarea value={refundReason} onChange={(event) => setRefundReason(event.target.value)} maxLength={500} placeholder="Describe why you are requesting a refund." /></label><button type="button" className="arcpass-dark-button" onClick={requestRefund} disabled={isRequestingRefund}>{isRequestingRefund ? "Waiting for signature" : "Sign and submit request"}</button></div>
               )}
               {refundError ? <p className="arcpass-error" role="alert">{refundError}</p> : null}
+              {refundRequest ? <DisputeEvidenceRoom defaultOpen request={refundRequest} viewerRole="payer" onRequestUpdated={setRefundRequest} /> : null}
             </section>
             <p className="arcpass-receipt-note">Receipt link: {receiptLink}</p>
           </>

@@ -726,10 +726,46 @@ button:disabled {
 .arcpass-refund-item-head i[data-status="approved"] { background: #ddf8ed; color: #087b53; }
 .arcpass-refund-item-head i[data-status="declined"] { background: #fde7ea; color: #b43c4a; }
 .arcpass-refund-list > article > p { color: #47546a; font-size: 0.8rem; line-height: 1.5; margin: 0; }
-.arcpass-refund-decision { display: flex; gap: 8px; justify-content: flex-end; }
+.arcpass-refund-decision { border-top: 1px solid #e1e6ef; display: grid; gap: 10px; padding-top: 14px; }
+.arcpass-refund-decision label { color: #344158; display: grid; font-size: 0.76rem; font-weight: 750; gap: 7px; }
+.arcpass-refund-decision textarea { background: var(--color-surface); border: 1px solid var(--color-outline-variant); border-radius: 10px; color: var(--color-on-surface); font: inherit; min-height: 82px; outline: none; padding: 11px 12px; resize: vertical; }
+.arcpass-refund-decision textarea:focus { border-color: #1b66ff; }
+.arcpass-refund-decision > div { display: flex; gap: 8px; justify-content: flex-end; }
 .arcpass-refund-decision button { border: 1px solid #dbe1eb; border-radius: 8px; cursor: pointer; font: inherit; font-size: 0.76rem; font-weight: 800; padding: 8px 12px; }
+.arcpass-refund-decision button:disabled { cursor: wait; opacity: 0.55; }
 .arcpass-refund-decision button:first-child { background: #fff1f2; color: #b43c4a; }
 .arcpass-refund-decision button:last-child { background: #e2f8ee; color: #087b53; }
+.arcpass-refund-decision-record { background: var(--color-surface-dim); border-radius: 10px; display: grid; gap: 5px; padding: 12px; }
+.arcpass-refund-decision-record strong { color: var(--color-on-surface); font-size: 0.8rem; text-transform: capitalize; }
+.arcpass-refund-decision-record p { margin: 0; }
+.arcpass-refund-decision-record small { color: #6d788b; font-size: 0.7rem; }
+.arcpass-evidence-room { border: 1px solid var(--color-outline-variant); border-radius: 12px; overflow: hidden; }
+.arcpass-evidence-room-toggle { align-items: center; background: var(--color-surface); border: 0; color: var(--color-on-surface); cursor: pointer; display: flex; font: inherit; justify-content: space-between; padding: 12px 14px; text-align: left; width: 100%; }
+.arcpass-evidence-room-toggle > span:first-child { display: grid; gap: 2px; }
+.arcpass-evidence-room-toggle b { font-size: 0.8rem; }
+.arcpass-evidence-room-toggle small { color: var(--color-on-surface-variant); font-size: 0.69rem; }
+.arcpass-evidence-room-toggle > span:last-child { color: var(--color-primary); font-size: 0.72rem; font-weight: 800; }
+.arcpass-evidence-room-body { background: var(--color-surface-low); border-top: 1px solid var(--color-outline-variant); display: grid; gap: 14px; padding: 14px; }
+.arcpass-evidence-timeline { display: grid; gap: 9px; }
+.arcpass-evidence-timeline article { background: var(--color-surface); border: 1px solid var(--color-outline-variant); border-radius: 10px; display: grid; gap: 7px; padding: 12px; }
+.arcpass-evidence-timeline article > div { align-items: center; display: flex; gap: 8px; justify-content: space-between; }
+.arcpass-evidence-timeline i { background: #eef3ff; border-radius: 999px; color: #315bb7; font-size: 0.66rem; font-style: normal; font-weight: 850; padding: 5px 8px; text-transform: capitalize; }
+.arcpass-evidence-timeline i[data-role="merchant"] { background: #e4f7ef; color: #087b53; }
+.arcpass-evidence-timeline time, .arcpass-evidence-timeline small { color: var(--color-on-surface-variant); font-size: 0.67rem; }
+.arcpass-evidence-timeline p { color: var(--color-on-surface-variant) !important; line-height: 1.55; margin: 0; overflow-wrap: anywhere; }
+.arcpass-evidence-timeline a { color: var(--color-primary); font-size: 0.75rem; font-weight: 750; overflow-wrap: anywhere; }
+.arcpass-evidence-timeline code { background: var(--color-surface-dim); border-radius: 6px; color: var(--color-on-surface-variant); font-size: 0.68rem; justify-self: start; padding: 5px 7px; }
+.arcpass-evidence-decision { border-color: #bde8d8 !important; }
+.arcpass-evidence-decision > strong { color: #087b53; font-size: 0.82rem; text-transform: capitalize; }
+.arcpass-evidence-form { border-top: 1px solid #e1e6ef; display: grid; gap: 11px; padding-top: 14px; }
+.arcpass-evidence-form label { color: #344158; display: grid; font-size: 0.75rem; font-weight: 750; gap: 7px; }
+.arcpass-evidence-form label small { color: #7a8496; font-size: 0.66rem; font-weight: 600; }
+.arcpass-evidence-form input, .arcpass-evidence-form textarea { background: var(--color-surface); border: 1px solid var(--color-outline-variant); border-radius: 9px; color: var(--color-on-surface); font: inherit; outline: none; padding: 10px 11px; width: 100%; }
+.arcpass-evidence-form textarea { min-height: 92px; resize: vertical; }
+.arcpass-evidence-form input:focus, .arcpass-evidence-form textarea:focus { border-color: #1b66ff; }
+.arcpass-evidence-reference-grid { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.arcpass-evidence-form .arcpass-dark-button { justify-self: start; }
+.arcpass-evidence-closed { background: var(--color-surface-dim); border-radius: 9px; color: var(--color-on-surface-variant) !important; font-size: 0.75rem !important; padding: 10px 12px; }
 .arcpass-collection-panel { display: grid; gap: 16px; }
 .arcpass-collection-heading { align-items: start; display: flex; gap: 16px; justify-content: space-between; }
 .arcpass-collection-heading h3 { margin-bottom: 0; }
@@ -924,6 +960,9 @@ button:disabled {
 .arcpass-template-save input { max-width: 280px; }
 
 @media (max-width: 640px) {
+  .arcpass-evidence-reference-grid { grid-template-columns: 1fr; }
+  .arcpass-evidence-form .arcpass-dark-button { width: 100%; }
+  .arcpass-refund-decision > div { align-items: stretch; flex-direction: column; }
   .arcpass-readiness-list { grid-template-columns: 1fr; }
   .arcpass-recovery-checks { grid-template-columns: 1fr; }
   .arcpass-branding-heading, .arcpass-branding-controls { grid-template-columns: 1fr; }
