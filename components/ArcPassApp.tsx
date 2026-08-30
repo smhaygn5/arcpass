@@ -75,6 +75,7 @@ import { isApprovalRequestView, type ApprovalRequestView } from "@/lib/team-poli
 import { DeveloperCenter } from "@/components/DeveloperCenter";
 import { DisputeEvidenceRoom } from "@/components/DisputeEvidenceRoom";
 import { disputeDecisionMessage, normalizeDisputeStatement } from "@/lib/disputes";
+import { NanopaymentCenter } from "@/components/NanopaymentCenter";
 
 const WORKSPACE_TABS = [
   { id: "dashboard", label: "Dashboard" },
@@ -85,6 +86,7 @@ const WORKSPACE_TABS = [
   { id: "intents", label: "Intents" },
   { id: "team", label: "Team" },
   { id: "developers", label: "Developers" },
+  { id: "x402", label: "x402" },
   { id: "receipts", label: "Receipts" },
 ] as const;
 const INVOICE_FILTERS = [
@@ -744,6 +746,7 @@ export function ArcPassApp() {
         ) : null}
         {activeTab === "team" ? <TeamAccessCenter refreshKey={approvalRefreshKey} walletAddress={walletAddress} /> : null}
         {activeTab === "developers" ? <DeveloperCenter walletAddress={walletAddress} /> : null}
+        {activeTab === "x402" ? <NanopaymentCenter walletAddress={walletAddress} /> : null}
 
         {error ? (
           <p className="arcpass-error" role="alert">

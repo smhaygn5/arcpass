@@ -22,26 +22,31 @@ export async function rateLimit(
     return { ok: false, retryAfter: 0 };
   }
   if (databaseConfigured()) {
-    const sql = getDatabase();
-    await pruneExpiredDatabaseBuckets();
-    const resetAt = new Date(Date.now() + windowMs).toISOString();
-    const rows = await sql`
-      insert into arcpass_rate_limits (rate_key, request_count, reset_at)
-      values (${key}, 1, ${resetAt})
-      on conflict (rate_key) do update set
-        request_count = case
-          when arcpass_rate_limits.reset_at <= now() then 1
-          else arcpass_rate_limits.request_count + 1
-        end,
-        reset_at = case
-          when arcpass_rate_limits.reset_at <= now() then excluded.reset_at
-          else arcpass_rate_limits.reset_at
-        end
-      returning request_count, greatest(1, ceil(extract(epoch from (reset_at - now()))))::integer as retry_after
-    `;
-    const bucket = rows[0] as DatabaseBucket | undefined;
-    const count = Number(bucket?.request_count ?? 1);
-    return { ok: count <= limit, retryAfter: count <= limit ? 0 : Number(bucket?.retry_after ?? 1) };
+    try {
+      const sql = getDatabase();
+      await pruneExpiredDatabaseBuckets();
+      const resetAt = new Date(Date.now() + windowMs).toISOString();
+      const rows = await sql`
+        insert into arcpass_rate_limits (rate_key, request_count, reset_at)
+        values (${key}, 1, ${resetAt})
+        on conflict (rate_key) do update set
+          request_count = case
+            when arcpass_rate_limits.reset_at <= now() then 1
+            else arcpass_rate_limits.request_count + 1
+          end,
+          reset_at = case
+            when arcpass_rate_limits.reset_at <= now() then excluded.reset_at
+            else arcpass_rate_limits.reset_at
+          end
+        returning request_count, greatest(1, ceil(extract(epoch from (reset_at - now()))))::integer as retry_after
+      `;
+      const bucket = rows[0] as DatabaseBucket | undefined;
+      const count = Number(bucket?.request_count ?? 1);
+      return { ok: count <= limit, retryAfter: count <= limit ? 0 : Number(bucket?.retry_after ?? 1) };
+    } catch {
+      if (process.env.NODE_ENV === "production") return { ok: false, retryAfter: 0 };
+      return memoryRateLimit(key, limit, windowMs);
+    }
   }
 
   return memoryRateLimit(key, limit, windowMs);

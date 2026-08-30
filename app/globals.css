@@ -2459,3 +2459,81 @@ button:disabled {
   .arcpass-approval-shell { margin-top: 38px; }
   .arcpass-approval-invoices article, .arcpass-approval-status { align-items: flex-start; flex-direction: column; }
 }
+
+.arcpass-nanopayment-center { display: grid; gap: 18px; }
+.arcpass-nanopayment-heading { align-items: flex-start; display: flex; gap: 24px; justify-content: space-between; }
+.arcpass-nanopayment-heading h3 { color: var(--color-on-surface); font-size: 1.2rem; margin: 5px 0 7px; }
+.arcpass-nanopayment-heading p:not(.arcpass-panel-label) { color: var(--color-on-surface-variant); font-size: 0.74rem; line-height: 1.55; margin: 0; max-width: 730px; }
+.arcpass-x402-protocol { background: #080c18; border: 1px solid color-mix(in srgb, var(--color-primary) 30%, #27304c); border-radius: 12px; color: #f7fbff; display: grid; flex-shrink: 0; gap: 3px; min-width: 170px; padding: 13px 15px; }
+.arcpass-x402-protocol span, .arcpass-x402-protocol small { color: #aebbd8; font-size: 0.58rem; }
+.arcpass-x402-protocol strong { font-family: var(--font-mono); font-size: 0.9rem; }
+.arcpass-nanopayment-metrics { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.arcpass-nanopayment-metrics > div { background: color-mix(in srgb, var(--color-surface-high) 72%, var(--color-surface)); border: 1px solid var(--color-outline-variant); border-radius: 11px; display: grid; gap: 5px; padding: 13px; }
+.arcpass-nanopayment-metrics span, .arcpass-nanopayment-metrics small { color: var(--color-on-surface-variant); font-size: 0.62rem; }
+.arcpass-nanopayment-metrics strong { color: var(--color-on-surface); font-family: var(--font-mono); font-size: 0.94rem; overflow-wrap: anywhere; }
+.arcpass-nanopayment-grid { display: grid; gap: 12px; grid-template-columns: minmax(0, 1.08fr) minmax(330px, 0.92fr); }
+.arcpass-nanopayment-builder, .arcpass-nanopayment-flow { background: color-mix(in srgb, var(--color-surface-high) 58%, var(--color-surface)); border: 1px solid var(--color-outline-variant); border-radius: 12px; display: grid; gap: 14px; padding: 16px; }
+.arcpass-nanopayment-builder h3, .arcpass-nanopayment-flow h3 { color: var(--color-on-surface); font-size: 0.95rem; margin: 4px 0 5px; }
+.arcpass-nanopayment-builder p:not(.arcpass-panel-label) { color: var(--color-on-surface-variant); font-size: 0.67rem; line-height: 1.55; margin: 0; }
+.arcpass-nanopayment-builder label { display: grid; gap: 6px; }
+.arcpass-nanopayment-builder label > span { color: var(--color-on-surface-variant); font-size: 0.62rem; font-weight: 850; }
+.arcpass-nanopayment-builder input, .arcpass-nanopayment-builder textarea { background: var(--color-surface); border: 1px solid var(--color-outline-variant); border-radius: 9px; color: var(--color-on-surface); font: inherit; font-size: 0.68rem; outline: none; padding: 10px 11px; width: 100%; }
+.arcpass-nanopayment-builder input { min-height: 42px; }
+.arcpass-nanopayment-builder textarea { font-family: var(--font-mono); line-height: 1.55; resize: vertical; }
+.arcpass-nanopayment-builder input:focus, .arcpass-nanopayment-builder textarea:focus { border-color: var(--color-primary); }
+.arcpass-nanopayment-form-row { display: grid; gap: 10px; grid-template-columns: minmax(0, 1.35fr) minmax(150px, 0.65fr); }
+.arcpass-price-input { align-items: center; background: var(--color-surface); border: 1px solid var(--color-outline-variant); border-radius: 9px; display: grid; grid-template-columns: minmax(0, 1fr) auto; overflow: hidden; }
+.arcpass-price-input:focus-within { border-color: var(--color-primary); }
+.arcpass-price-input input { border: 0; border-radius: 0; min-width: 0; }
+.arcpass-price-input strong { color: var(--color-primary); font-family: var(--font-mono); font-size: 0.62rem; padding-right: 10px; }
+.arcpass-nanopayment-flow ol { display: grid; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.arcpass-nanopayment-flow li { align-items: flex-start; display: grid; gap: 11px; grid-template-columns: 31px minmax(0, 1fr); padding: 9px 0; position: relative; }
+.arcpass-nanopayment-flow li:not(:last-child)::after { background: var(--color-outline-variant); bottom: -6px; content: ""; left: 15px; position: absolute; top: 36px; width: 1px; }
+.arcpass-nanopayment-flow li > span { align-items: center; background: var(--color-primary-soft); border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-outline-variant)); border-radius: 50%; color: var(--color-primary); display: flex; font-family: var(--font-mono); font-size: 0.57rem; font-weight: 900; height: 31px; justify-content: center; }
+.arcpass-nanopayment-flow li strong { color: var(--color-on-surface); display: block; font-size: 0.7rem; }
+.arcpass-nanopayment-flow li p { color: var(--color-on-surface-variant); font-size: 0.61rem; line-height: 1.5; margin: 4px 0 0; }
+.arcpass-nanopayment-note { background: color-mix(in srgb, var(--color-success-soft) 58%, var(--color-surface)); border: 1px solid color-mix(in srgb, var(--color-success) 25%, var(--color-outline-variant)); border-radius: 10px; padding: 12px; }
+.arcpass-nanopayment-note strong { color: var(--color-success); display: block; font-size: 0.66rem; }
+.arcpass-nanopayment-note p { color: var(--color-on-surface-variant); font-size: 0.61rem; line-height: 1.5; margin: 4px 0 0; }
+.arcpass-x402-inspection { align-items: center; background: color-mix(in srgb, var(--color-primary-soft) 36%, var(--color-surface)); border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-outline-variant)); border-radius: 11px; display: grid; gap: 18px; grid-template-columns: minmax(180px, 0.55fr) minmax(0, 1.45fr); padding: 14px; }
+.arcpass-x402-inspection > div span, .arcpass-x402-inspection > div strong { display: block; }
+.arcpass-x402-inspection > div span { color: var(--color-primary); font-size: 0.6rem; font-weight: 900; }
+.arcpass-x402-inspection > div strong { color: var(--color-on-surface); font-size: 0.76rem; margin-top: 4px; }
+.arcpass-x402-inspection dl { display: grid; gap: 8px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; }
+.arcpass-x402-inspection dl > div { min-width: 0; }
+.arcpass-x402-inspection dt { color: var(--color-on-surface-variant); font-size: 0.55rem; }
+.arcpass-x402-inspection dd { color: var(--color-on-surface); font-family: var(--font-mono); font-size: 0.59rem; margin: 3px 0 0; overflow-wrap: anywhere; }
+.arcpass-x402-resource-list { border-top: 1px solid var(--color-outline-variant); display: grid; gap: 12px; padding-top: 16px; }
+.arcpass-x402-resource-list > div:last-child { display: grid; gap: 9px; }
+.arcpass-x402-resource-list article { background: color-mix(in srgb, var(--color-surface-low) 72%, transparent); border: 1px solid var(--color-outline-variant); border-left: 3px solid var(--color-success); border-radius: 11px; display: grid; gap: 12px; padding: 13px; }
+.arcpass-x402-resource-list article[data-status="paused"] { border-left-color: var(--color-caution); }
+.arcpass-x402-resource-main { align-items: flex-start; display: grid; gap: 11px; grid-template-columns: 38px minmax(0, 1fr); min-width: 0; }
+.arcpass-x402-resource-icon { align-items: center; background: #080c18; border-radius: 9px; color: #8ab0ff; display: flex; font-family: var(--font-mono); font-size: 0.62rem; font-weight: 900; height: 38px; justify-content: center; }
+.arcpass-x402-resource-main strong { color: var(--color-on-surface); display: block; font-size: 0.76rem; }
+.arcpass-x402-resource-main p { color: var(--color-on-surface-variant); font-size: 0.61rem; line-height: 1.45; margin: 4px 0 6px; }
+.arcpass-x402-resource-main code { color: var(--color-primary); display: block; font-family: var(--font-mono); font-size: 0.56rem; overflow-wrap: anywhere; }
+.arcpass-x402-resource-stats { align-items: center; border-bottom: 1px solid var(--color-outline-variant); border-top: 1px solid var(--color-outline-variant); display: grid; gap: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; padding: 10px 0; }
+.arcpass-x402-resource-stats span, .arcpass-x402-resource-stats strong { display: block; }
+.arcpass-x402-resource-stats span { color: var(--color-on-surface-variant); font-size: 0.55rem; }
+.arcpass-x402-resource-stats strong { color: var(--color-on-surface); font-family: var(--font-mono); font-size: 0.64rem; margin-top: 3px; overflow-wrap: anywhere; }
+.arcpass-x402-resource-stats em { background: var(--color-success-soft); border-radius: 999px; color: var(--color-success); font-size: 0.55rem; font-style: normal; font-weight: 900; padding: 5px 8px; text-transform: uppercase; }
+.arcpass-x402-resource-list article[data-status="paused"] em { background: var(--color-caution-soft); color: var(--color-caution); }
+.arcpass-x402-resource-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.arcpass-x402-resource-actions button { background: var(--color-surface); border: 1px solid var(--color-outline-variant); border-radius: 8px; color: var(--color-on-surface); font-size: 0.58rem; font-weight: 800; min-height: 32px; padding: 0 10px; }
+.arcpass-x402-resource-actions button:last-child { color: var(--color-caution); }
+
+@media (max-width: 980px) {
+  .arcpass-nanopayment-grid { grid-template-columns: 1fr; }
+  .arcpass-x402-inspection { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 700px) {
+  .arcpass-nanopayment-heading { align-items: stretch; flex-direction: column; }
+  .arcpass-x402-protocol { min-width: 0; }
+  .arcpass-nanopayment-metrics, .arcpass-nanopayment-form-row, .arcpass-x402-inspection dl { grid-template-columns: 1fr; }
+  .arcpass-nanopayment-builder input, .arcpass-nanopayment-builder textarea { font-size: 1rem; }
+  .arcpass-x402-resource-stats { align-items: flex-start; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .arcpass-x402-resource-stats em { justify-self: start; }
+  .arcpass-x402-resource-actions { align-items: stretch; flex-direction: column; }
+  .arcpass-x402-resource-actions button { width: 100%; }
+}

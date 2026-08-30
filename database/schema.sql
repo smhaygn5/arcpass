@@ -139,6 +139,34 @@ create table if not exists arcpass_webhook_deliveries (
 create index if not exists arcpass_webhook_deliveries_endpoint_created_idx
   on arcpass_webhook_deliveries (endpoint_id, created_at desc);
 
+create table if not exists arcpass_x402_resources (
+  resource_id text primary key,
+  merchant text not null,
+  status text not null check (status in ('active', 'paused')),
+  resource jsonb not null,
+  created_at timestamptz not null,
+  updated_at timestamptz not null
+);
+
+create index if not exists arcpass_x402_resources_merchant_created_idx
+  on arcpass_x402_resources ((lower(merchant)), created_at desc);
+
+create table if not exists arcpass_x402_accesses (
+  access_id text primary key,
+  resource_id text not null references arcpass_x402_resources(resource_id) on delete restrict,
+  merchant text not null,
+  payer text not null,
+  transaction text not null unique,
+  access jsonb not null,
+  created_at timestamptz not null
+);
+
+create index if not exists arcpass_x402_accesses_merchant_created_idx
+  on arcpass_x402_accesses ((lower(merchant)), created_at desc);
+
+create index if not exists arcpass_x402_accesses_resource_created_idx
+  on arcpass_x402_accesses (resource_id, created_at desc);
+
 -- ArcPass is server-only. Block Supabase Data API roles even if public schema
 -- grants are enabled at the project level.
 alter table public.arcpass_invoices enable row level security;
@@ -153,6 +181,8 @@ alter table public.arcpass_approval_requests enable row level security;
 alter table public.arcpass_approval_signatures enable row level security;
 alter table public.arcpass_webhook_endpoints enable row level security;
 alter table public.arcpass_webhook_deliveries enable row level security;
+alter table public.arcpass_x402_resources enable row level security;
+alter table public.arcpass_x402_accesses enable row level security;
 
 revoke all privileges on table
   public.arcpass_invoices,
@@ -166,5 +196,7 @@ revoke all privileges on table
   public.arcpass_approval_requests,
   public.arcpass_approval_signatures,
   public.arcpass_webhook_endpoints,
-  public.arcpass_webhook_deliveries
+  public.arcpass_webhook_deliveries,
+  public.arcpass_x402_resources,
+  public.arcpass_x402_accesses
 from anon, authenticated, public;

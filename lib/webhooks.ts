@@ -6,6 +6,8 @@ export const WEBHOOK_EVENT_TYPES = [
   "refund.requested",
   "refund.updated",
   "dispute.evidence_added",
+  "x402.resource_created",
+  "x402.payment_settled",
   "approval.requested",
   "approval.completed",
 ] as const;
@@ -53,6 +55,8 @@ export const WEBHOOK_EVENT_LABELS: Record<WebhookEventName, string> = {
   "approval.requested": "Approval requested",
   "endpoint.test": "Test event",
   "dispute.evidence_added": "Dispute evidence added",
+  "x402.resource_created": "x402 resource created",
+  "x402.payment_settled": "x402 payment settled",
   "invoice.created": "Invoice created",
   "payment.verified": "Payment verified",
   "refund.requested": "Refund requested",
