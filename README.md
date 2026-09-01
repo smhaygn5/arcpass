@@ -4,7 +4,7 @@ ArcPass combines a merchant passport with buyer-readable stablecoin payment link
 
 ## What works now
 
-- Merchant wallet connection with a server-verified signature
+- Merchant access through an installed EVM wallet or a Circle user-controlled email wallet, both protected by a server-verified signature
 - Domain manifest verification at `/.well-known/arcpass.json`
 - Verified invoice link generation
 - Public checkout page at `/pay/[payload]`
@@ -44,6 +44,12 @@ npm run db:smoke
 ```
 
 When `DATABASE_URL` is absent, ArcPass falls back to the git-ignored `.arcpass-data` JSON ledgers for local tests and offline development.
+
+## Circle email wallet onboarding
+
+Set `CIRCLE_API_KEY` and `NEXT_PUBLIC_CIRCLE_APP_ID` to enable the email wallet option. In the Circle Developer Console, configure a user-controlled wallet application, enable email authentication, and add SMTP settings. ArcPass creates EOA wallets on `ARC-TESTNET`, keeps Circle user tokens only in page memory, and never receives a private key, PIN, or recovery material.
+
+Without these values, the Wallet tab keeps browser wallet access available and shows a configuration notice for the email option.
 
 ## Run locally
 

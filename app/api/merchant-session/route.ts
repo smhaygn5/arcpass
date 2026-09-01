@@ -3,6 +3,7 @@ import { clientKey, rateLimit, tooManyRequests } from "@/lib/rate-limit";
 import { getRequestOrigin } from "@/lib/site";
 import {
   createMerchantChallenge,
+  revokeMerchantSession,
   setMerchantSessionCookie,
   verifyMerchantChallenge,
 } from "@/lib/server-merchant-session";
@@ -49,5 +50,18 @@ export async function POST(req: NextRequest) {
       { error: err instanceof Error ? err.message : "Merchant session could not be verified." },
       { status: 401 },
     );
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  const limit = await rateLimit(`merchant-session-revoke:${clientKey(req)}`, 20, 60_000);
+  if (!limit.ok) return tooManyRequests(limit.retryAfter);
+
+  try {
+    const response = NextResponse.json({ authenticated: false });
+    await revokeMerchantSession(req, response);
+    return response;
+  } catch {
+    return NextResponse.json({ error: "The merchant session could not be disconnected." }, { status: 500 });
   }
 }

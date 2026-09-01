@@ -2001,8 +2001,15 @@ button:disabled {
   }
 
   .arcpass-nav-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-start;
     width: 100%;
-    justify-content: space-between;
+  }
+
+  .arcpass-nav-actions .arcpass-ghost-button,
+  .arcpass-nav-actions .arcpass-dark-button {
+    flex: 1 1 calc(50% - 8px);
   }
 
   .arcpass-nav,
@@ -2536,4 +2543,64 @@ button:disabled {
   .arcpass-x402-resource-stats em { justify-self: start; }
   .arcpass-x402-resource-actions { align-items: stretch; flex-direction: column; }
   .arcpass-x402-resource-actions button { width: 100%; }
+}
+
+.arcpass-wallet-onboarding { display: grid; gap: 14px; }
+.arcpass-wallet-intro { align-items: center; display: flex; gap: 28px; justify-content: space-between; }
+.arcpass-wallet-intro > div:first-child { max-width: 690px; }
+.arcpass-wallet-intro h3, .arcpass-wallet-method h3, .arcpass-connected-wallet h3 { color: var(--color-on-surface); font-size: 1.05rem; margin: 5px 0 8px; }
+.arcpass-wallet-intro p:not(.arcpass-panel-label), .arcpass-wallet-method > p { color: var(--color-on-surface-variant); font-size: 0.69rem; line-height: 1.62; margin: 0; }
+.arcpass-wallet-trust { align-items: center; background: color-mix(in srgb, var(--color-success-soft) 62%, var(--color-surface)); border: 1px solid color-mix(in srgb, var(--color-success) 26%, var(--color-outline-variant)); border-radius: 12px; display: grid; flex: 0 1 350px; gap: 11px; grid-template-columns: 34px minmax(0, 1fr); padding: 13px; }
+.arcpass-wallet-trust > span, .arcpass-connected-wallet-icon { align-items: center; background: var(--color-success-soft); border-radius: 50%; color: var(--color-success); display: flex; font-weight: 950; height: 34px; justify-content: center; width: 34px; }
+.arcpass-wallet-trust strong, .arcpass-wallet-trust small { display: block; }
+.arcpass-wallet-trust strong { color: var(--color-on-surface); font-size: 0.67rem; }
+.arcpass-wallet-trust small { color: var(--color-on-surface-variant); font-size: 0.58rem; line-height: 1.45; margin-top: 3px; }
+.arcpass-wallet-methods { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.arcpass-wallet-method { align-content: start; display: grid; gap: 15px; overflow: hidden; position: relative; }
+.arcpass-wallet-method-email { background: linear-gradient(145deg, color-mix(in srgb, var(--color-primary-soft) 32%, var(--color-surface)) 0%, var(--color-surface) 52%); }
+.arcpass-wallet-method-heading { align-items: center; display: grid; gap: 12px; grid-template-columns: 39px minmax(0, 1fr); }
+.arcpass-wallet-method-heading > span { align-items: center; background: var(--color-surface-low); border: 1px solid var(--color-outline-variant); border-radius: 10px; color: var(--color-primary); display: flex; font-family: var(--font-mono); font-size: 0.62rem; font-weight: 900; height: 39px; justify-content: center; }
+.arcpass-wallet-method-heading h3 { margin-bottom: 0; }
+.arcpass-wallet-method > ul { color: var(--color-on-surface-variant); display: grid; font-size: 0.63rem; gap: 7px; margin: 0; padding-left: 18px; }
+.arcpass-wallet-method > .arcpass-dark-button { justify-content: center; margin-top: auto; width: 100%; }
+.arcpass-wallet-steps { display: grid; gap: 8px; grid-template-columns: repeat(3, minmax(0, 1fr)); list-style: none; margin: 0; padding: 0; }
+.arcpass-wallet-steps li { align-items: center; background: color-mix(in srgb, var(--color-surface-low) 70%, transparent); border: 1px solid var(--color-outline-variant); border-radius: 9px; display: grid; gap: 7px; grid-template-columns: 24px minmax(0, 1fr); padding: 9px; }
+.arcpass-wallet-steps li > span { align-items: center; background: var(--color-surface); border: 1px solid var(--color-outline-variant); border-radius: 50%; color: var(--color-on-surface-variant); display: flex; font-family: var(--font-mono); font-size: 0.55rem; font-weight: 900; height: 24px; justify-content: center; }
+.arcpass-wallet-steps li strong { color: var(--color-on-surface-variant); font-size: 0.57rem; line-height: 1.25; }
+.arcpass-wallet-steps li[data-state="active"] { border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-outline-variant)); }
+.arcpass-wallet-steps li[data-state="active"] > span { background: var(--color-primary-soft); border-color: transparent; color: var(--color-primary); }
+.arcpass-wallet-steps li[data-state="active"] strong { color: var(--color-on-surface); }
+.arcpass-wallet-steps li[data-state="complete"] > span { background: var(--color-success-soft); border-color: transparent; color: var(--color-success); }
+.arcpass-wallet-config-note, .arcpass-wallet-ready { background: color-mix(in srgb, var(--color-caution-soft) 45%, var(--color-surface)); border: 1px solid color-mix(in srgb, var(--color-caution) 24%, var(--color-outline-variant)); border-radius: 10px; padding: 12px; }
+.arcpass-wallet-config-note strong, .arcpass-wallet-config-note p, .arcpass-wallet-ready span, .arcpass-wallet-ready strong { display: block; }
+.arcpass-wallet-config-note strong { color: var(--color-caution); font-size: 0.66rem; }
+.arcpass-wallet-config-note p { color: var(--color-on-surface-variant); font-size: 0.6rem; line-height: 1.5; margin: 4px 0 0; }
+.arcpass-wallet-email-form { display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr) auto; }
+.arcpass-wallet-email-form label { display: grid; gap: 6px; }
+.arcpass-wallet-email-form label span { color: var(--color-on-surface-variant); font-size: 0.61rem; font-weight: 850; }
+.arcpass-wallet-email-form input { background: var(--color-surface); border: 1px solid var(--color-outline-variant); border-radius: 9px; color: var(--color-on-surface); font: inherit; font-size: 0.68rem; min-height: 42px; outline: none; padding: 0 11px; width: 100%; }
+.arcpass-wallet-email-form input:focus { border-color: var(--color-primary); }
+.arcpass-wallet-ready { align-items: center; background: color-mix(in srgb, var(--color-success-soft) 45%, var(--color-surface)); border-color: color-mix(in srgb, var(--color-success) 24%, var(--color-outline-variant)); display: flex; gap: 14px; justify-content: space-between; }
+.arcpass-wallet-ready span { color: var(--color-success); font-size: 0.58rem; font-weight: 900; }
+.arcpass-wallet-ready strong { color: var(--color-on-surface); font-family: var(--font-mono); font-size: 0.68rem; margin-top: 3px; }
+.arcpass-connected-wallet { align-items: center; display: grid; gap: 16px; grid-template-columns: 42px minmax(0, 1fr) auto; }
+.arcpass-connected-wallet-icon { height: 42px; width: 42px; }
+.arcpass-connected-wallet h3 { font-family: var(--font-mono); margin-bottom: 7px; }
+.arcpass-wallet-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.arcpass-wallet-badges span { background: var(--color-primary-soft); border-radius: 999px; color: var(--color-primary); font-size: 0.56rem; font-weight: 850; padding: 5px 8px; }
+.arcpass-wallet-notice { background: color-mix(in srgb, var(--color-primary-soft) 40%, var(--color-surface)); border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-outline-variant)); border-radius: 10px; color: var(--color-on-surface-variant); font-size: 0.64rem; line-height: 1.5; margin: 0; padding: 11px 13px; }
+
+@media (max-width: 860px) {
+  .arcpass-wallet-intro { align-items: stretch; flex-direction: column; }
+  .arcpass-wallet-trust { flex-basis: auto; }
+  .arcpass-wallet-methods { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 620px) {
+  .arcpass-wallet-steps, .arcpass-wallet-email-form { grid-template-columns: 1fr; }
+  .arcpass-wallet-email-form input { font-size: 1rem; }
+  .arcpass-connected-wallet { align-items: start; grid-template-columns: 42px minmax(0, 1fr); }
+  .arcpass-connected-wallet .arcpass-ghost-button { grid-column: 1 / -1; width: 100%; }
+  .arcpass-wallet-ready { align-items: stretch; flex-direction: column; }
+  .arcpass-wallet-ready .arcpass-dark-button { width: 100%; }
 }

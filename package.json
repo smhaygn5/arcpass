@@ -9,7 +9,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint app components lib scripts eslint.config.mjs next.config.ts postcss.config.mjs",
-    "test": "node --test lib/arcpass.test.ts lib/invoice-lifecycle.test.ts lib/payment-readiness.test.ts lib/payment-link-kit.test.ts lib/invoice-templates.test.ts lib/revenue-insights.test.ts lib/payment-receipt.test.ts lib/refunds.test.ts lib/disputes.test.ts lib/collection-reminders.test.ts lib/bulk-invoices.test.ts lib/checkout-recovery.test.ts lib/payment-branding.test.ts lib/payer-directory.test.ts lib/cross-chain-checkout.test.ts lib/unified-usdc-balance.test.ts lib/payment-intents.test.ts lib/installments.test.ts lib/recurring-invoices.test.ts lib/team-policies.test.ts lib/webhooks.test.ts lib/x402.test.ts",
+    "test": "node --test lib/arcpass.test.ts lib/invoice-lifecycle.test.ts lib/payment-readiness.test.ts lib/payment-link-kit.test.ts lib/invoice-templates.test.ts lib/revenue-insights.test.ts lib/payment-receipt.test.ts lib/refunds.test.ts lib/disputes.test.ts lib/collection-reminders.test.ts lib/bulk-invoices.test.ts lib/checkout-recovery.test.ts lib/payment-branding.test.ts lib/payer-directory.test.ts lib/cross-chain-checkout.test.ts lib/unified-usdc-balance.test.ts lib/payment-intents.test.ts lib/installments.test.ts lib/recurring-invoices.test.ts lib/team-policies.test.ts lib/webhooks.test.ts lib/x402.test.ts lib/embedded-wallet.test.ts",
     "db:migrate": "node --env-file=.env.local scripts/migrate-database.mjs",
     "db:check": "node --env-file=.env.local scripts/check-database.mjs",
     "db:smoke": "node --env-file=.env.local scripts/smoke-supabase.mjs"
@@ -17,6 +17,7 @@
   "dependencies": {
     "@circle-fin/adapter-viem-v2": "1.17.0",
     "@circle-fin/bridge-kit": "^1.14.0",
+    "@circle-fin/w3s-pw-web-sdk": "1.1.11",
     "@circle-fin/x402-batching": "^3.4.0",
     "@x402/core": "^2.24.0",
     "@x402/evm": "^2.24.0",
@@ -40,6 +41,8 @@
   },
   "overrides": {
     "nanoid": "3.3.18",
-    "postcss": "8.5.23"
+    "postcss": "8.5.23",
+    "undici": "6.28.0",
+    "uuid": "11.1.1"
   }
 }

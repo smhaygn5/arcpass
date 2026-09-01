@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { Address } from "viem";
+import type { Address, Hex } from "viem";
 import {
   disputeEvidenceMessage,
   isDisputeEvidence,
@@ -26,12 +26,14 @@ export function DisputeEvidenceRoom({
   request,
   viewerRole,
   walletAddress,
+  walletSignMessage,
 }: {
   defaultOpen?: boolean;
   onRequestUpdated?: (request: RefundRequest) => void;
   request: RefundRequest;
   viewerRole: DisputeEvidenceRole;
   walletAddress?: Address | null;
+  walletSignMessage?: ((message: string) => Promise<Hex>) | null;
 }) {
   const [evidence, setEvidence] = useState<DisputeEvidence[]>([]);
   const [evidenceSha256, setEvidenceSha256] = useState("");
@@ -105,8 +107,10 @@ export function DisputeEvidenceRoom({
       const normalizedStatement = normalizeDisputeStatement(statement);
       const normalizedUrl = normalizeEvidenceUrl(evidenceUrl);
       const normalizedSha256 = normalizeEvidenceSha256(evidenceSha256);
-      const signer = await requestVerifiedWalletAddressSelection();
       const expectedSigner = viewerRole === "payer" ? request.payer : request.merchant;
+      const signer = viewerRole === "merchant" && walletAddress && walletSignMessage
+        ? walletAddress
+        : await requestVerifiedWalletAddressSelection();
       if (signer.toLowerCase() !== expectedSigner.toLowerCase()) {
         throw new Error(`Connect the ${viewerRole} wallet for this dispute.`);
       }
@@ -123,7 +127,9 @@ export function DisputeEvidenceRoom({
         statement: normalizedStatement,
         txHash: request.txHash,
       });
-      const signature = await signWalletMessage(signer, message);
+      const signature = viewerRole === "merchant" && walletSignMessage
+        ? await walletSignMessage(message)
+        : await signWalletMessage(signer, message);
       const res = await fetch("/api/disputes", {
         body: JSON.stringify({
           evidenceSha256: normalizedSha256,

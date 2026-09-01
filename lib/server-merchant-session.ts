@@ -143,6 +143,25 @@ export function setMerchantSessionCookie(response: NextResponse, token: string) 
   });
 }
 
+export async function revokeMerchantSession(req: NextRequest, response: NextResponse) {
+  const token = req.cookies.get(SESSION_COOKIE)?.value;
+  if (token) {
+    if (databaseConfigured()) {
+      const sql = getDatabase();
+      await sql`delete from arcpass_merchant_sessions where token_hash = ${hashSecret(token)}`;
+    } else {
+      sessions.delete(token);
+    }
+  }
+  response.cookies.set(SESSION_COOKIE, "", {
+    httpOnly: true,
+    maxAge: 0,
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
+}
+
 export async function requireMerchantSession(req: NextRequest, merchant: string) {
   if (!isAddress(merchant)) {
     return { ok: false as const, error: "Merchant wallet address is invalid.", status: 400 };

@@ -11,6 +11,7 @@ const contentSecurityPolicy = [
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
+  "frame-src 'self' https://pw-auth.circle.com",
   "frame-ancestors 'none'",
   "manifest-src 'self'",
   "worker-src 'self' blob:",

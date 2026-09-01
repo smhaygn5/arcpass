@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
-import type { Address } from "viem";
+import type { Address, Hex } from "viem";
 import { ArcPassMark } from "@/components/ArcPassMark";
 import { PaymentLinkQr } from "@/components/PaymentLinkQr";
 import { ARC_TESTNET_NETWORK } from "@/lib/arc-chain";
@@ -76,9 +76,11 @@ import { DeveloperCenter } from "@/components/DeveloperCenter";
 import { DisputeEvidenceRoom } from "@/components/DisputeEvidenceRoom";
 import { disputeDecisionMessage, normalizeDisputeStatement } from "@/lib/disputes";
 import { NanopaymentCenter } from "@/components/NanopaymentCenter";
+import { EmbeddedWalletOnboarding } from "@/components/EmbeddedWalletOnboarding";
 
 const WORKSPACE_TABS = [
   { id: "dashboard", label: "Dashboard" },
+  { id: "wallet", label: "Wallet" },
   { id: "passport", label: "Passport" },
   { id: "verify", label: "Verify Domain" },
   { id: "invoice", label: "Invoice Link" },
@@ -116,6 +118,7 @@ type ReceiptOperationsSummary = {
 type VerificationState = "idle" | "checking" | "verified" | "failed";
 type WorkspaceTab = (typeof WORKSPACE_TABS)[number]["id"];
 type InvoiceOperationResult = { invoices: SavedInvoice[]; status: "registered" } | { request: ApprovalRequestView; status: "pending" };
+type WalletSigner = (message: string) => Promise<Hex>;
 
 export function ArcPassApp() {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("dashboard");
@@ -139,6 +142,8 @@ export function ArcPassApp() {
   const [token, setToken] = useState<ArcPassTokenSymbol>("USDC");
   const [verification, setVerification] = useState<VerificationState>("idle");
   const [walletAddress, setWalletAddress] = useState<Address | null>(null);
+  const [walletMode, setWalletMode] = useState<"browser" | "embedded" | null>(null);
+  const [walletSigner, setWalletSigner] = useState<WalletSigner | null>(null);
 
   const passportPreview = useMemo(() => {
     if (!walletAddress) return null;
@@ -244,21 +249,56 @@ export function ArcPassApp() {
     };
   }, []);
 
-  async function connectWallet() {
+  async function connectBrowserWallet() {
     setError(null);
     try {
       await ensurePaymentNetwork(ARC_TESTNET_NETWORK);
       const address = await requestWalletAddress();
-      await startMerchantSession(address);
+      const signer: WalletSigner = (message) => signWalletMessage(address, message);
+      await startMerchantSession(address, signer);
       setWalletAddress(address);
+      setWalletMode("browser");
+      setWalletSigner(() => signer);
       void loadMerchantServerInvoices(address);
       void loadMerchantServerReceipts(address);
+      setActiveTab("dashboard");
     } catch (err) {
-      setError(walletErrorMessage(err));
+      const message = walletErrorMessage(err);
+      setError(message);
+      throw new Error(message);
     }
   }
 
-  async function startMerchantSession(address: Address) {
+  async function connectEmbeddedWallet(address: Address, signer: WalletSigner) {
+    setError(null);
+    try {
+      await startMerchantSession(address, signer);
+      setWalletAddress(address);
+      setWalletMode("embedded");
+      setWalletSigner(() => signer);
+      void loadMerchantServerInvoices(address);
+      void loadMerchantServerReceipts(address);
+      setActiveTab("dashboard");
+    } catch (err) {
+      const message = walletErrorMessage(err);
+      setError(message);
+      throw new Error(message);
+    }
+  }
+
+  async function disconnectWallet() {
+    const response = await fetch("/api/merchant-session", { method: "DELETE" });
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+      throw new Error(body?.error || "The merchant session could not be disconnected.");
+    }
+    setWalletAddress(null);
+    setWalletMode(null);
+    setWalletSigner(null);
+    setActiveTab("wallet");
+  }
+
+  async function startMerchantSession(address: Address, signer: WalletSigner) {
     const challengeRes = await fetch(`/api/merchant-session?address=${encodeURIComponent(address)}`, {
       cache: "no-store",
     });
@@ -270,7 +310,7 @@ export function ArcPassApp() {
       throw new Error(challenge?.error || "Merchant session challenge could not be created.");
     }
 
-    const signature = await signWalletMessage(address, challenge.message);
+    const signature = await signer(challenge.message);
     const sessionRes = await fetch("/api/merchant-session", {
       body: JSON.stringify({ address, message: challenge.message, signature }),
       headers: { "content-type": "application/json" },
@@ -561,7 +601,7 @@ export function ArcPassApp() {
           </button>
 
           <div className="arcpass-nav-links">
-            {WORKSPACE_TABS.slice(1, 6).map((tab) => (
+            {WORKSPACE_TABS.slice(2, 7).map((tab) => (
               <button
                 key={tab.id}
                 type="button"
@@ -583,7 +623,7 @@ export function ArcPassApp() {
             <button type="button" onClick={() => selectTab("receipts")} className="arcpass-ghost-button">
               Receipts
             </button>
-            <button type="button" onClick={connectWallet} className="arcpass-dark-button">
+            <button type="button" onClick={() => selectTab("wallet")} className="arcpass-dark-button">
               {walletAddress ? shortAddress(walletAddress) : "Connect"}
             </button>
           </div>
@@ -654,6 +694,15 @@ export function ArcPassApp() {
             score={score}
             selectTab={setActiveTab}
             walletAddress={walletAddress}
+          />
+        ) : null}
+        {activeTab === "wallet" ? (
+          <EmbeddedWalletOnboarding
+            onBrowserConnect={connectBrowserWallet}
+            onDisconnect={disconnectWallet}
+            onEmbeddedConnect={connectEmbeddedWallet}
+            walletAddress={walletAddress}
+            walletMode={walletMode}
           />
         ) : null}
         {activeTab === "passport" ? (
@@ -742,6 +791,7 @@ export function ArcPassApp() {
             receiptHistory={receiptHistory}
             serverReceiptError={serverReceiptError}
             walletAddress={walletAddress}
+            walletSigner={walletSigner}
           />
         ) : null}
         {activeTab === "team" ? <TeamAccessCenter refreshKey={approvalRefreshKey} walletAddress={walletAddress} /> : null}
@@ -790,7 +840,7 @@ function DashboardTab({
             <button
               key={step}
               type="button"
-              onClick={() => selectTab(step === "01" ? "passport" : step === "02" ? "verify" : step === "03" ? "invoice" : "intents")}
+              onClick={() => selectTab(step === "01" ? "wallet" : step === "02" ? "verify" : step === "03" ? "invoice" : "intents")}
               className="arcpass-flow-item"
             >
               <span>{step}</span>
@@ -1498,6 +1548,7 @@ function ReceiptsTab({
   receiptHistory,
   serverReceiptError,
   walletAddress,
+  walletSigner,
 }: {
   invoiceHistory: SavedInvoice[];
   isLoadingServerReceipts: boolean;
@@ -1506,6 +1557,7 @@ function ReceiptsTab({
   receiptHistory: SavedReceipt[];
   serverReceiptError: string | null;
   walletAddress: Address | null;
+  walletSigner: WalletSigner | null;
 }) {
   const [importError, setImportError] = useState<string | null>(null);
   const [importLink, setImportLink] = useState("");
@@ -1673,7 +1725,7 @@ function ReceiptsTab({
         />
       </div>
 
-      <RefundRequestsPanel walletAddress={walletAddress} />
+      <RefundRequestsPanel walletAddress={walletAddress} walletSigner={walletSigner} />
     </div>
   );
 }
@@ -1769,7 +1821,7 @@ function PayerDirectoryPanel({ receiptHistory }: { receiptHistory: SavedReceipt[
   );
 }
 
-function RefundRequestsPanel({ walletAddress }: { walletAddress: Address | null }) {
+function RefundRequestsPanel({ walletAddress, walletSigner }: { walletAddress: Address | null; walletSigner: WalletSigner | null }) {
   const [decisionNotes, setDecisionNotes] = useState<Record<string, string>>({});
   const [decidingRequestId, setDecidingRequestId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -1815,10 +1867,10 @@ function RefundRequestsPanel({ walletAddress }: { walletAddress: Address | null 
       const request = requests.find((item) => item.requestId === requestId);
       if (!request) throw new Error("Refund request was not found.");
       const note = normalizeDisputeStatement(decisionNotes[requestId] ?? "");
-      const signer = await requestVerifiedWalletAddressSelection();
+      const signer = walletSigner ? walletAddress : await requestVerifiedWalletAddressSelection();
       if (signer.toLowerCase() !== walletAddress.toLowerCase()) throw new Error("Connect the merchant wallet that owns this request.");
       const message = disputeDecisionMessage({ invoiceId: request.invoiceId, note, requestId, signer, status, txHash: request.txHash });
-      const signature = await signWalletMessage(signer, message);
+      const signature = walletSigner ? await walletSigner(message) : await signWalletMessage(signer, message);
       const res = await fetch("/api/refunds", { body: JSON.stringify({ merchant: walletAddress, note, requestId, signature, signer, status }), headers: { "content-type": "application/json" }, method: "PATCH" });
       const body = (await res.json().catch(() => null)) as { error?: string; refund?: unknown } | null;
       if (!res.ok || !isRefundRequest(body?.refund)) throw new Error(body?.error || "Refund decision could not be saved.");
@@ -1835,7 +1887,7 @@ function RefundRequestsPanel({ walletAddress }: { walletAddress: Address | null 
     <section className="arcpass-panel arcpass-refund-merchant-panel">
       <div className="arcpass-refund-panel-heading"><div><p className="arcpass-panel-label">Dispute evidence room</p><h3>Review signed context before recording a decision.</h3></div><button type="button" className="arcpass-ghost-button" onClick={loadRequests} disabled={!walletAddress || isLoading}>{isLoading ? "Refreshing" : "Refresh"}</button></div>
       {!walletAddress ? <p className="arcpass-empty">Connect the merchant wallet to review refund requests.</p> : requests.length === 0 ? <p className="arcpass-empty">No refund requests yet.</p> : (
-        <div className="arcpass-refund-list">{requests.map((request) => <article key={request.requestId}><div className="arcpass-refund-item-head"><div><strong>{request.amount} {request.token}</strong><span>{request.invoiceId} · {shortAddress(request.payer)}</span></div><i data-status={request.status}>{request.status}</i></div><p>{request.reason}</p><small>Requested {new Date(request.createdAt).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}</small><DisputeEvidenceRoom request={request} viewerRole="merchant" walletAddress={walletAddress} onRequestUpdated={(updated) => setRequests((current) => current.map((item) => item.requestId === updated.requestId ? updated : item))} />{request.status === "pending" ? <div className="arcpass-refund-decision"><label><span>Decision note</span><textarea value={decisionNotes[request.requestId] ?? ""} onChange={(event) => setDecisionNotes((current) => ({ ...current, [request.requestId]: event.target.value }))} maxLength={1000} placeholder="Explain why this request is approved or declined." /></label><div><button type="button" disabled={decidingRequestId === request.requestId} onClick={() => decide(request.requestId, "declined")}>Decline with signature</button><button type="button" disabled={decidingRequestId === request.requestId} onClick={() => decide(request.requestId, "approved")}>Approve with signature</button></div></div> : request.decision ? <div className="arcpass-refund-decision-record"><strong>{request.decision.status} by {shortAddress(request.decision.signer)}</strong><p>{request.decision.note}</p><small>Signed {new Date(request.decision.decidedAt).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}</small></div> : <p className="arcpass-muted">Decision recorded. Token settlement remains a separate merchant action.</p>}</article>)}</div>
+        <div className="arcpass-refund-list">{requests.map((request) => <article key={request.requestId}><div className="arcpass-refund-item-head"><div><strong>{request.amount} {request.token}</strong><span>{request.invoiceId} · {shortAddress(request.payer)}</span></div><i data-status={request.status}>{request.status}</i></div><p>{request.reason}</p><small>Requested {new Date(request.createdAt).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}</small><DisputeEvidenceRoom request={request} viewerRole="merchant" walletAddress={walletAddress} walletSignMessage={walletSigner} onRequestUpdated={(updated) => setRequests((current) => current.map((item) => item.requestId === updated.requestId ? updated : item))} />{request.status === "pending" ? <div className="arcpass-refund-decision"><label><span>Decision note</span><textarea value={decisionNotes[request.requestId] ?? ""} onChange={(event) => setDecisionNotes((current) => ({ ...current, [request.requestId]: event.target.value }))} maxLength={1000} placeholder="Explain why this request is approved or declined." /></label><div><button type="button" disabled={decidingRequestId === request.requestId} onClick={() => decide(request.requestId, "declined")}>Decline with signature</button><button type="button" disabled={decidingRequestId === request.requestId} onClick={() => decide(request.requestId, "approved")}>Approve with signature</button></div></div> : request.decision ? <div className="arcpass-refund-decision-record"><strong>{request.decision.status} by {shortAddress(request.decision.signer)}</strong><p>{request.decision.note}</p><small>Signed {new Date(request.decision.decidedAt).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}</small></div> : <p className="arcpass-muted">Decision recorded. Token settlement remains a separate merchant action.</p>}</article>)}</div>
       )}
       {error ? <p className="arcpass-error" role="alert">{error}</p> : null}
     </section>
