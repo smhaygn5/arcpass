@@ -146,15 +146,21 @@ export function isPublicIpAddress(address: string) {
   const normalized = address.toLowerCase();
 
   if (version === 4) {
-    const [first = 0, second = 0] = normalized.split(".").map(Number);
+    const [first = 0, second = 0, third = 0] = normalized.split(".").map(Number);
 
     return !(
       first === 0 ||
       first === 10 ||
       first === 127 ||
+      (first === 100 && second >= 64 && second <= 127) ||
       (first === 169 && second === 254) ||
       (first === 172 && second >= 16 && second <= 31) ||
+      (first === 192 && second === 0 && third === 0) ||
+      (first === 192 && second === 0 && third === 2) ||
       (first === 192 && second === 168) ||
+      (first === 198 && (second === 18 || second === 19)) ||
+      (first === 198 && second === 51 && third === 100) ||
+      (first === 203 && second === 0 && third === 113) ||
       first >= 224
     );
   }
@@ -163,9 +169,11 @@ export function isPublicIpAddress(address: string) {
     return !(
       normalized === "::" ||
       normalized === "::1" ||
+      normalized.startsWith("64:ff9b:") ||
+      normalized.startsWith("2001:db8:") ||
       normalized.startsWith("fc") ||
       normalized.startsWith("fd") ||
-      /^fe[89ab]/.test(normalized) ||
+      /^fe[89a-f]/.test(normalized) ||
       normalized.startsWith("::ffff:")
     );
   }
