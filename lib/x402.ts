@@ -10,6 +10,8 @@ export type X402ResourceStatus = "active" | "paused";
 export type X402Resource = {
   createdAt: string;
   description: string;
+  expiresAt?: string;
+  maxCalls?: number;
   merchant: Address;
   price: string;
   resourceId: string;
@@ -35,6 +37,19 @@ export type X402ResourceSummary = X402Resource & {
   settledAmount: string;
 };
 
+export type X402AccessWindow = {
+  label: string;
+  state: "ending" | "expired" | "open" | "scheduled";
+};
+
+export type X402PayerSummary = {
+  callCount: number;
+  lastAccessAt: string;
+  payer: Address;
+  resourceCount: number;
+  settledAmount: string;
+};
+
 export function normalizeX402ResourceInput(value: unknown, merchant: string) {
   if (!isAddress(merchant)) throw new Error("Merchant wallet address is invalid.");
   if (!isRecord(value)) throw new Error("Nanopayment resource is invalid.");
@@ -44,7 +59,9 @@ export function normalizeX402ResourceInput(value: unknown, merchant: string) {
   const price = normalizeX402Price(value.price);
   const responseBody = normalizeResponseBody(value.responseBody);
 
-  return { description, merchant: getAddress(merchant), price, responseBody, title };
+  const expiresAt = normalizeExpiry(value.expiresAt);
+  const maxCalls = normalizeMaxCalls(value.maxCalls);
+  return { description, expiresAt, maxCalls, merchant: getAddress(merchant), price, responseBody, title };
 }
 
 export function normalizeX402Price(value: unknown) {
@@ -78,6 +95,32 @@ export function x402ResourceUrl(origin: string, resourceId: string) {
   return `${origin.replace(/\/$/, "")}/api/x402/resources/${encodeURIComponent(resourceId)}`;
 }
 
+export function x402AccessWindow(expiresAt: string | undefined, now = Date.now()): X402AccessWindow {
+  if (!expiresAt) return { label: "No expiry", state: "open" };
+  const expiry = new Date(expiresAt).getTime();
+  if (!Number.isFinite(expiry) || expiry <= now) return { label: "Expired", state: "expired" };
+
+  const remainingMinutes = Math.ceil((expiry - now) / 60_000);
+  if (remainingMinutes <= 24 * 60) {
+    return { label: remainingMinutes <= 60 ? `${remainingMinutes}m left` : `${Math.ceil(remainingMinutes / 60)}h left`, state: "ending" };
+  }
+  if (remainingMinutes <= 7 * 24 * 60) return { label: `${Math.ceil(remainingMinutes / (24 * 60))}d left`, state: "ending" };
+  return { label: `Until ${new Date(expiry).toLocaleDateString("en", { day: "numeric", month: "short" })}`, state: "scheduled" };
+}
+
+export function normalizeX402AccessExpiry(value: unknown) {
+  if (!isIsoDate(value)) throw new Error("Access expiry must be a valid date and time.");
+  const date = new Date(value as string);
+  if (date.getTime() <= Date.now()) throw new Error("Access expiry must be in the future.");
+  return date.toISOString();
+}
+
+export function normalizeX402MaxCalls(value: unknown) {
+  const amount = typeof value === "number" ? value : Number(value);
+  if (!Number.isInteger(amount) || amount < 1 || amount > 100_000) throw new Error("Usage limit must be a whole number between 1 and 100000.");
+  return amount;
+}
+
 export function x402Metrics(resources: X402Resource[], accesses: X402Access[]) {
   const byResource = new Map<string, X402Access[]>();
   for (const access of accesses) {
@@ -97,12 +140,35 @@ export function x402Metrics(resources: X402Resource[], accesses: X402Access[]) {
   });
 
   const settledAtomic = accesses.reduce((total, access) => total + BigInt(access.amount), BigInt(0));
+  const payerCount = new Set(accesses.map((access) => access.payer.toLowerCase())).size;
+  const latestAccess = accesses.reduce<X402Access | null>((latest, access) => !latest || new Date(access.createdAt).getTime() > new Date(latest.createdAt).getTime() ? access : latest, null);
+  const topResource = [...summaries].sort((left, right) => right.accessCount - left.accessCount || left.title.localeCompare(right.title))[0] ?? null;
   return {
     activeResources: resources.filter((resource) => resource.status === "active").length,
+    latestAccessAt: latestAccess?.createdAt ?? null,
     paidRequests: accesses.length,
+    payerCount,
     resources: summaries,
     settledAmount: atomicToDecimal(settledAtomic),
+    topResource: topResource ? { accessCount: topResource.accessCount, title: topResource.title } : null,
   };
+}
+
+export function x402PayerMetrics(accesses: X402Access[]): X402PayerSummary[] {
+  const summaries = new Map<string, { callCount: number; lastAccessAt: string; payer: Address; resources: Set<string>; settledAtomic: bigint }>();
+  for (const access of accesses) {
+    const key = access.payer.toLowerCase();
+    const current = summaries.get(key) ?? { callCount: 0, lastAccessAt: access.createdAt, payer: access.payer, resources: new Set<string>(), settledAtomic: BigInt(0) };
+    current.callCount += 1;
+    current.resources.add(access.resourceId);
+    current.settledAtomic += BigInt(access.amount);
+    if (new Date(access.createdAt).getTime() > new Date(current.lastAccessAt).getTime()) current.lastAccessAt = access.createdAt;
+    summaries.set(key, current);
+  }
+
+  return [...summaries.values()]
+    .sort((left, right) => left.settledAtomic === right.settledAtomic ? new Date(right.lastAccessAt).getTime() - new Date(left.lastAccessAt).getTime() : left.settledAtomic > right.settledAtomic ? -1 : 1)
+    .map((payer) => ({ callCount: payer.callCount, lastAccessAt: payer.lastAccessAt, payer: payer.payer, resourceCount: payer.resources.size, settledAmount: atomicToDecimal(payer.settledAtomic) }));
 }
 
 export function isX402Resource(value: unknown): value is X402Resource {
@@ -118,6 +184,8 @@ export function isX402Resource(value: unknown): value is X402Resource {
     (value.status === "active" || value.status === "paused") &&
     typeof value.title === "string" &&
     typeof value.description === "string" &&
+    (value.expiresAt === undefined || isIsoDate(value.expiresAt)) &&
+    (value.maxCalls === undefined || (Number.isInteger(value.maxCalls) && Number(value.maxCalls) >= 1 && Number(value.maxCalls) <= 100_000)) &&
     isIsoDate(value.createdAt) &&
     isIsoDate(value.updatedAt)
   );
@@ -168,4 +236,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isIsoDate(value: unknown) {
   return typeof value === "string" && Number.isFinite(new Date(value).getTime());
+}
+
+function normalizeExpiry(value: unknown) {
+  if (value === undefined || value === null || value === "") return undefined;
+  return normalizeX402AccessExpiry(value);
+}
+
+function normalizeMaxCalls(value: unknown) {
+  if (value === undefined || value === null || value === "") return undefined;
+  return normalizeX402MaxCalls(value);
 }

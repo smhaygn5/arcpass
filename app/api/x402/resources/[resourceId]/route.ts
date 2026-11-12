@@ -2,7 +2,7 @@ import { after, NextRequest, NextResponse } from "next/server";
 import { getAddress, isAddress } from "viem";
 import { clientKey, rateLimit, tooManyRequests } from "@/lib/rate-limit";
 import { publishServerWebhookEvent } from "@/lib/server-webhooks";
-import { findServerX402Resource, recordServerX402Access } from "@/lib/server-x402";
+import { countServerX402Accesses, findServerX402Resource, recordServerX402Access, withServerX402CapacitySlot, X402UsageLimitReachedError } from "@/lib/server-x402";
 import { createArcX402RequestServer } from "@/lib/server-x402-gateway";
 import { x402PriceToAtomic } from "@/lib/x402";
 
@@ -17,6 +17,8 @@ export async function GET(req: NextRequest, context: RouteContext<"/api/x402/res
     const resource = await findServerX402Resource(resourceId);
     if (!resource) return NextResponse.json({ error: "Nanopayment resource was not found." }, { status: 404 });
     if (resource.status !== "active") return NextResponse.json({ error: "This nanopayment resource is paused." }, { status: 410 });
+    if (resource.expiresAt && new Date(resource.expiresAt).getTime() <= Date.now()) return NextResponse.json({ error: "This nanopayment resource has expired." }, { status: 410 });
+    if (resource.maxCalls && await countServerX402Accesses(resource.resourceId) >= resource.maxCalls) return NextResponse.json({ error: "This nanopayment resource has reached its usage limit." }, { status: 410 });
 
     const { context: paymentContext, server } = await createArcX402RequestServer(req, resource);
     const payment = await server.processHTTPRequest(paymentContext);
@@ -31,37 +33,40 @@ export async function GET(req: NextRequest, context: RouteContext<"/api/x402/res
       resource: { description: resource.description, id: resource.resourceId, title: resource.title },
     };
     const responseBody = Buffer.from(JSON.stringify(protectedBody));
-    const settlement = await server.processSettlement(
-      payment.paymentPayload,
-      payment.paymentRequirements,
-      payment.declaredExtensions,
-      { request: paymentContext, responseBody, responseHeaders: { "content-type": "application/json" } },
-      undefined,
-      payment.beforeHandlerSettlement,
-    );
+    const { access, settlement } = await withServerX402CapacitySlot(resource, async (database) => {
+      const completedSettlement = await server.processSettlement(
+        payment.paymentPayload,
+        payment.paymentRequirements,
+        payment.declaredExtensions,
+        { request: paymentContext, responseBody, responseHeaders: { "content-type": "application/json" } },
+        undefined,
+        payment.beforeHandlerSettlement,
+      );
+      if (!completedSettlement.success) return { access: null, settlement: completedSettlement };
+
+      if (typeof completedSettlement.payer !== "string" || !isAddress(completedSettlement.payer) || !completedSettlement.transaction || typeof completedSettlement.network !== "string") {
+        throw new Error("Gateway settlement did not return a valid payer receipt.");
+      }
+      const completedAccess = await recordServerX402Access({
+        amount: x402PriceToAtomic(resource.price),
+        database,
+        merchant: resource.merchant,
+        network: completedSettlement.network,
+        payer: getAddress(completedSettlement.payer),
+        resourceId: resource.resourceId,
+        transaction: completedSettlement.transaction,
+      });
+      return { access: completedAccess, settlement: completedSettlement };
+    });
     if (!settlement.success) return instructionResponse(settlement.response);
 
-    if (typeof settlement.payer !== "string" || !isAddress(settlement.payer) || !settlement.transaction || typeof settlement.network !== "string") {
-      return NextResponse.json({ error: "Gateway settlement did not return a valid payer receipt." }, { status: 502 });
-    }
-    try {
-      const access = await recordServerX402Access({
-        amount: x402PriceToAtomic(resource.price),
-        merchant: resource.merchant,
-        network: settlement.network,
-        payer: getAddress(settlement.payer),
-        resourceId: resource.resourceId,
-        transaction: settlement.transaction,
-      });
+    if (access) {
       after(() => publishServerWebhookEvent({
         data: { accessId: access.accessId, amount: access.amount, network: access.network, payer: access.payer, resourceId: access.resourceId, transaction: access.transaction },
         merchant: resource.merchant,
         subjectId: access.accessId,
         type: "x402.payment_settled",
       }));
-    } catch {
-      // Payment is already final. Never withhold the purchased response because
-      // a secondary analytics write failed after successful settlement.
     }
 
     const headers = new Headers(settlement.headers);
@@ -69,6 +74,9 @@ export async function GET(req: NextRequest, context: RouteContext<"/api/x402/res
     headers.set("content-type", "application/json");
     return new NextResponse(responseBody, { headers, status: 200 });
   } catch (error) {
+    if (error instanceof X402UsageLimitReachedError) {
+      return NextResponse.json({ error: error.message }, { headers: { "cache-control": "no-store" }, status: 410 });
+    }
     const message = error instanceof Error ? error.message : "Nanopayment request could not be completed.";
     const unavailable = /DATABASE_URL|persistent database/i.test(message);
     return NextResponse.json(
