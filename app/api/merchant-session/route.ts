@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { clientKey, rateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { clientKey, rateLimit, tooManyRequests, walletRateLimitKey } from "@/lib/rate-limit";
 import { getRequestOrigin } from "@/lib/site";
 import {
   createMerchantChallenge,
@@ -17,26 +17,25 @@ type SessionBody = {
 };
 
 export async function GET(req: NextRequest) {
-  const limit = await rateLimit(`merchant-session-challenge:${clientKey(req)}`, 20, 60_000);
+  const address = req.nextUrl.searchParams.get("address") ?? "";
+  const limit = await rateLimit(`merchant-session-challenge:${clientKey(req)}:${walletRateLimitKey(address)}`, 8, 60_000);
   if (!limit.ok) return tooManyRequests(limit.retryAfter);
 
   try {
-    const address = req.nextUrl.searchParams.get("address") ?? "";
     return NextResponse.json(await createMerchantChallenge({ address, origin: getRequestOrigin(req.nextUrl.origin) }));
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Merchant session challenge failed." },
-      { status: 400 },
+      { error: "Merchant session challenge could not be created." },
+      { status: err instanceof Error && /DATABASE_URL/i.test(err.message) ? 503 : 400 },
     );
   }
 }
 
 export async function POST(req: NextRequest) {
-  const limit = await rateLimit(`merchant-session-verify:${clientKey(req)}`, 20, 60_000);
-  if (!limit.ok) return tooManyRequests(limit.retryAfter);
-
   const body = (await req.json().catch(() => null)) as SessionBody | null;
   const address = typeof body?.address === "string" ? body.address : "";
+  const limit = await rateLimit(`merchant-session-verify:${clientKey(req)}:${walletRateLimitKey(address)}`, 8, 60_000);
+  if (!limit.ok) return tooManyRequests(limit.retryAfter);
   const message = typeof body?.message === "string" ? body.message : "";
   const signature = typeof body?.signature === "string" ? body.signature : "";
 
@@ -47,8 +46,8 @@ export async function POST(req: NextRequest) {
     return response;
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Merchant session could not be verified." },
-      { status: 401 },
+      { error: "Merchant session could not be verified." },
+      { status: err instanceof Error && /DATABASE_URL/i.test(err.message) ? 503 : 401 },
     );
   }
 }

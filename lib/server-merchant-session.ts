@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { getAddress, isAddress, verifyMessage, type Address, type Hex } from "viem";
 import type { NextRequest, NextResponse } from "next/server";
-import { databaseConfigured, getDatabase } from "./server-database.ts";
+import { databaseConfigured, getDatabase, requirePersistentDatabase } from "./server-database.ts";
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
@@ -31,6 +31,7 @@ export async function createMerchantChallenge({
   address: string;
   origin: string;
 }) {
+  requirePersistentDatabase();
   if (!isAddress(address)) {
     throw new Error("Merchant wallet address is invalid.");
   }
@@ -76,6 +77,7 @@ export async function verifyMerchantChallenge({
   message: string;
   signature: string;
 }) {
+  requirePersistentDatabase();
   if (!isAddress(address)) {
     throw new Error("Merchant wallet address is invalid.");
   }
@@ -144,6 +146,7 @@ export function setMerchantSessionCookie(response: NextResponse, token: string) 
 }
 
 export async function revokeMerchantSession(req: NextRequest, response: NextResponse) {
+  requirePersistentDatabase();
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   if (token) {
     if (databaseConfigured()) {
@@ -163,6 +166,11 @@ export async function revokeMerchantSession(req: NextRequest, response: NextResp
 }
 
 export async function requireMerchantSession(req: NextRequest, merchant: string) {
+  try {
+    requirePersistentDatabase();
+  } catch {
+    return { ok: false as const, error: "ArcPass storage is temporarily unavailable. No payment action was accepted.", status: 503 };
+  }
   if (!isAddress(merchant)) {
     return { ok: false as const, error: "Merchant wallet address is invalid.", status: 400 };
   }
