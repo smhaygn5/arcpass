@@ -4,6 +4,7 @@ import {
   getAddress,
   isAddress,
   parseEventLogs,
+  TransactionReceiptNotFoundError,
   type Address,
   type Hash,
 } from "viem";
@@ -86,11 +87,19 @@ export async function POST(req: NextRequest) {
   const expectedMerchant = getAddress(invoice.merchant.walletAddress);
 
   try {
-    const registeredInvoice = await findServerInvoiceByPayload({
-      invoiceId: invoice.invoiceId,
-      merchant: expectedMerchant,
-      payload,
-    });
+    let registeredInvoice;
+    try {
+      registeredInvoice = await findServerInvoiceByPayload({
+        invoiceId: invoice.invoiceId,
+        merchant: expectedMerchant,
+        payload,
+      });
+    } catch {
+      return NextResponse.json(
+        { error: "ArcPass invoice registry is temporarily unavailable. Do not submit another payment; retry receipt verification shortly.", verified: false },
+        { status: 503 },
+      );
+    }
 
     if (!registeredInvoice) {
       return NextResponse.json(
@@ -131,7 +140,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const receipt = await publicClient.getTransactionReceipt({ hash: txHash as Hash });
+    let receipt;
+    try {
+      receipt = await publicClient.getTransactionReceipt({ hash: txHash as Hash });
+    } catch (error) {
+      if (error instanceof TransactionReceiptNotFoundError) {
+        return NextResponse.json(
+          { error: "Transaction was not found on Arc Testnet yet.", explorerUrl: paymentReceiptUrl(txHash), verified: false },
+          { status: 404 },
+        );
+      }
+      return NextResponse.json(
+        { error: "ArcPass could not reach Arc Testnet. Do not submit another payment; retry receipt verification shortly.", explorerUrl: paymentReceiptUrl(txHash), verified: false },
+        { status: 502 },
+      );
+    }
 
     if (receipt.status !== "success") {
       return NextResponse.json(
@@ -238,18 +261,26 @@ export async function POST(req: NextRequest) {
       if (err instanceof ReceiptAssignmentConflictError) {
         return transactionAssignmentConflict(txHash);
       }
-      serverSaved = false;
+      return NextResponse.json(
+        {
+          ...verifiedReceipt,
+          retryable: true,
+          serverSaved,
+          warning: "Arc payment verified, but ArcPass could not record the shared receipt yet. Do not submit another payment; retry receipt verification shortly.",
+        },
+        { status: 202 },
+      );
     }
 
     return NextResponse.json({ ...verifiedReceipt, serverSaved });
   } catch {
     return NextResponse.json(
       {
-        error: "Transaction could not be found or verified on Arc Testnet.",
+        error: "ArcPass could not complete receipt verification. Do not submit another payment; retry verification shortly.",
         explorerUrl: paymentReceiptUrl(txHash),
         verified: false,
       },
-      { status: 404 },
+      { status: 502 },
     );
   }
 }
