@@ -7,6 +7,7 @@ import {
   TransactionReceiptNotFoundError,
   type Address,
   type Hash,
+  type Hex,
 } from "viem";
 import { arcTestnet, arcTestnetTransport } from "@/lib/arc-chain";
 import {
@@ -16,6 +17,7 @@ import {
   invoiceExpired,
   paymentReceiptUrl,
 } from "@/lib/arcpass";
+import { paymentVerificationMessage } from "@/lib/payment-verification";
 import { clientKey, rateLimit, tooManyRequests } from "@/lib/rate-limit";
 import { getRequestOrigin } from "@/lib/site";
 import type { VerifiedReceiptPayload } from "@/lib/receipts";
@@ -26,6 +28,7 @@ import {
   saveServerReceipt,
 } from "@/lib/server-receipts";
 import { publishServerWebhookEvent } from "@/lib/server-webhooks";
+import { verifyArcWalletMessage } from "@/lib/server-signatures";
 
 export const runtime = "nodejs";
 
@@ -52,6 +55,7 @@ const REQUIRED_CONFIRMATIONS = BigInt(2);
 type VerifyPaymentBody = {
   payer?: unknown;
   payload?: unknown;
+  receiptSignature?: unknown;
   txHash?: unknown;
 };
 
@@ -82,6 +86,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Connect the buyer wallet before verifying a payment." }, { status: 400 });
   }
   const payer = getAddress(body.payer);
+  const receiptSignature = typeof body?.receiptSignature === "string" ? body.receiptSignature : "";
+  if (!/^0x[0-9a-fA-F]+$/.test(receiptSignature)) {
+    return NextResponse.json({ error: "Buyer wallet confirmation is required before verifying this receipt." }, { status: 400 });
+  }
   const token = ARCPASS_TOKENS[invoice.token];
   const expectedAmount = invoiceAmountRaw(invoice);
   const expectedMerchant = getAddress(invoice.merchant.walletAddress);
@@ -109,6 +117,15 @@ export async function POST(req: NextRequest) {
         },
         { status: 409 },
       );
+    }
+
+    const verifiedClaim = await verifyArcWalletMessage({
+      address: payer,
+      message: paymentVerificationMessage({ invoice, payer, txHash: txHash as Hash }),
+      signature: receiptSignature as Hex,
+    }).catch(() => false);
+    if (!verifiedClaim) {
+      return NextResponse.json({ error: "Buyer wallet confirmation could not be verified." }, { status: 401 });
     }
 
     const assignedReceipt = await findServerReceiptByTxHash(txHash);

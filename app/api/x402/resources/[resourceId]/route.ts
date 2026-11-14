@@ -75,7 +75,7 @@ export async function GET(req: NextRequest, context: RouteContext<"/api/x402/res
     return new NextResponse(responseBody, { headers, status: 200 });
   } catch (error) {
     if (error instanceof X402UsageLimitReachedError) {
-      return NextResponse.json({ error: error.message }, { headers: { "cache-control": "no-store" }, status: 410 });
+      return NextResponse.json({ error: "This nanopayment resource has reached its usage limit." }, { headers: { "cache-control": "no-store" }, status: 410 });
     }
     const message = error instanceof Error ? error.message : "Nanopayment request could not be completed.";
     const unavailable = /DATABASE_URL|persistent database/i.test(message);

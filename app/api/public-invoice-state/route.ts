@@ -21,8 +21,13 @@ export async function GET(req: NextRequest) {
   const trustedReceipt = matchedReceipt;
 
   return NextResponse.json({
+    // The opaque reference is safe to share. The encoded payload is returned
+    // only in the response because checkout verification still needs it; it
+    // is never placed in the URL for new links.
+    invoice,
     invoiceId: invoice.invoiceId,
     paid: Boolean(trustedReceipt),
+    payload: registeredInvoice.payload,
     registered: Boolean(registeredInvoice),
     receipt: trustedReceipt
       ? {

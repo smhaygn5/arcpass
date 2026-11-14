@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
       type: "dispute.evidence_added",
     }));
     return NextResponse.json({ evidence });
-  } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Evidence could not be recorded." }, { status: 400 });
+  } catch {
+    return NextResponse.json({ error: "Evidence could not be recorded. Check the signed evidence and try again." }, { status: 400 });
   }
 }

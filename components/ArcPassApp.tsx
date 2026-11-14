@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
-import type { Address, Hex } from "viem";
+import { isAddress, type Address, type Hex } from "viem";
 import { ArcPassMark } from "@/components/ArcPassMark";
 import { PaymentLinkQr } from "@/components/PaymentLinkQr";
 import { ARC_TESTNET_NETWORK } from "@/lib/arc-chain";
@@ -77,6 +77,7 @@ import { DisputeEvidenceRoom } from "@/components/DisputeEvidenceRoom";
 import { disputeDecisionMessage, normalizeDisputeStatement } from "@/lib/disputes";
 import { NanopaymentCenter } from "@/components/NanopaymentCenter";
 import { EmbeddedWalletOnboarding } from "@/components/EmbeddedWalletOnboarding";
+import { paymentVerificationMessage } from "@/lib/payment-verification";
 
 const WORKSPACE_TABS = [
   { id: "dashboard", label: "Dashboard" },
@@ -90,6 +91,11 @@ const WORKSPACE_TABS = [
   { id: "developers", label: "Developers" },
   { id: "x402", label: "x402" },
   { id: "receipts", label: "Receipts" },
+] as const;
+const WORKSPACE_TAB_GROUPS = [
+  { label: "Overview", tabs: ["dashboard", "wallet", "passport", "verify"] },
+  { label: "Collections", tabs: ["invoice", "payments", "intents", "receipts"] },
+  { label: "Operations", tabs: ["team", "developers", "x402"] },
 ] as const;
 const INVOICE_FILTERS = [
   { id: "all", label: "All" },
@@ -672,16 +678,16 @@ export function ArcPassApp() {
             <h2>{WORKSPACE_TABS.find((tab) => tab.id === activeTab)?.label}</h2>
           </div>
           <div className="arcpass-tabbar" role="tablist" aria-label="ArcPass workspace tabs">
-            {WORKSPACE_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === tab.id}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                {tab.label}
-              </button>
+            {WORKSPACE_TAB_GROUPS.map((group) => (
+              <div className="arcpass-tab-group" key={group.label}>
+                <span>{group.label}</span>
+                <div>
+                  {group.tabs.map((id) => {
+                    const tab = WORKSPACE_TABS.find((candidate) => candidate.id === id)!;
+                    return <button key={tab.id} type="button" role="tab" aria-selected={activeTab === tab.id} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>;
+                  })}
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -1561,6 +1567,7 @@ function ReceiptsTab({
 }) {
   const [importError, setImportError] = useState<string | null>(null);
   const [importLink, setImportLink] = useState("");
+  const [importPayer, setImportPayer] = useState("");
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
   const [importTxHash, setImportTxHash] = useState("");
   const [isImporting, setIsImporting] = useState(false);
@@ -1575,12 +1582,11 @@ function ReceiptsTab({
     setImportError(null);
     setImportSuccess(null);
 
-    const payload = extractInvoicePayload(importLink);
-    const invoice = decodeInvoicePayload(payload);
+    const reference = extractInvoicePayload(importLink);
     const txHash = importTxHash.trim();
 
-    if (!invoice) {
-      setImportError("Paste a valid ArcPass payment link or invoice payload.");
+    if (!reference) {
+      setImportError("Paste a valid ArcPass payment link or invoice reference.");
       return;
     }
 
@@ -1588,12 +1594,31 @@ function ReceiptsTab({
       setImportError("Paste a valid Arc transaction hash.");
       return;
     }
+    if (!isAddress(importPayer)) {
+      setImportError("Enter the buyer wallet that sent this payment.");
+      return;
+    }
 
     setIsImporting(true);
 
     try {
+      const invoiceStateRes = await fetch(`/api/public-invoice-state?ref=${encodeURIComponent(reference)}`, { cache: "no-store" });
+      const invoiceState = (await invoiceStateRes.json().catch(() => null)) as { error?: string; payload?: string } | null;
+      const payload = invoiceState?.payload ?? "";
+      const invoice = decodeInvoicePayload(payload);
+      if (!invoiceStateRes.ok || !invoice) throw new Error(invoiceState?.error || "ArcPass could not resolve this invoice link.");
+
+      const buyer = await requestVerifiedWalletAddressSelection();
+      if (buyer.toLowerCase() !== importPayer.toLowerCase()) {
+        throw new Error("Connect the buyer wallet shown above to confirm this receipt.");
+      }
+      const receiptSignature = await signWalletMessage(
+        buyer,
+        paymentVerificationMessage({ invoice, payer: buyer, txHash: txHash as Hex }),
+      );
+
       const res = await fetch("/api/payments/verify", {
-        body: JSON.stringify({ payload, txHash }),
+        body: JSON.stringify({ payer: buyer, payload, receiptSignature, txHash }),
         headers: { "content-type": "application/json" },
         method: "POST",
       });
@@ -1609,6 +1634,7 @@ function ReceiptsTab({
       const nextReceipts = saveVerifiedReceipt({
         invoice,
         payload,
+        publicReference: reference,
         receipt: verified,
       });
       const ledgerNote = verified.serverSaved
@@ -1618,6 +1644,7 @@ function ReceiptsTab({
       onReceiptImported(nextReceipts);
       void onRefreshServerReceipts();
       setImportLink("");
+      setImportPayer("");
       setImportTxHash("");
       setImportSuccess(`Saved verified ${verified.amount} ${verified.token} receipt for ${shortAddress(verified.payer)}. ${ledgerNote}`);
     } catch (err) {
@@ -1633,7 +1660,7 @@ function ReceiptsTab({
         <p className="arcpass-panel-label">Import verified receipt</p>
         <h3>Save a buyer payment into this merchant ledger.</h3>
         <div className="arcpass-import-grid">
-          <Field label="Payment link or payload">
+          <Field label="Payment link or invoice reference">
             <input
               value={importLink}
               onChange={(event) => setImportLink(event.target.value)}
@@ -1649,7 +1676,16 @@ function ReceiptsTab({
               className={INPUT_CLASS}
             />
           </Field>
+          <Field label="Buyer wallet">
+            <input
+              value={importPayer}
+              onChange={(event) => setImportPayer(event.target.value)}
+              placeholder="0x..."
+              className={INPUT_CLASS}
+            />
+          </Field>
         </div>
+        <p className="arcpass-muted">The buyer signs a receipt confirmation before ArcPass can associate a payment with this invoice.</p>
         <button type="button" onClick={importReceipt} disabled={isImporting} className="arcpass-dark-button arcpass-inline-action">
           {isImporting ? "Verifying receipt" : "Verify and save receipt"}
         </button>

@@ -64,8 +64,8 @@ export async function POST(req: NextRequest) {
       type: "refund.requested",
     }));
     return NextResponse.json({ refund });
-  } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Refund request could not be created." }, { status: 400 });
+  } catch {
+    return NextResponse.json({ error: "Refund request could not be created. Check the signed request and try again." }, { status: 400 });
   }
 }
 
@@ -89,8 +89,8 @@ export async function PATCH(req: NextRequest) {
   let note: string;
   try {
     note = normalizeDisputeStatement(typeof body?.note === "string" ? body.note : "");
-  } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Decision note is invalid." }, { status: 400 });
+  } catch {
+    return NextResponse.json({ error: "Decision note is invalid." }, { status: 400 });
   }
   const message = disputeDecisionMessage({ invoiceId: current.invoiceId, note, requestId, signer: normalizedMerchant, status, txHash: current.txHash });
   const verified = await verifyArcWalletMessage({ address: normalizedMerchant, message, signature: signature as Hex }).catch(() => false);

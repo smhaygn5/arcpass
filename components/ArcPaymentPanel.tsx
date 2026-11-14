@@ -44,6 +44,7 @@ import { DEFAULT_PAYMENT_LINK_BRANDING, PAYMENT_BRAND_ACCENTS, merchantMonogram 
 import { CrossChainCheckout } from "@/components/CrossChainCheckout";
 import { installmentCadenceLabel } from "@/lib/installments";
 import { recurringCadenceLabel, recurringSeriesTotal } from "@/lib/recurring-invoices";
+import { paymentVerificationMessage } from "@/lib/payment-verification";
 
 const erc20Abi = [
   {
@@ -83,6 +84,9 @@ type VerifiedReceipt = {
   token: ArcPassTokenSymbol;
   txHash: Hash;
   verified: true;
+  retryable?: boolean;
+  serverSaved?: boolean;
+  warning?: string;
 };
 
 export function ArcPaymentPanel({
@@ -109,6 +113,7 @@ export function ArcPaymentPanel({
   const [networkReady, setNetworkReady] = useState(false);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
   const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus>("idle");
+  const [settlementWarning, setSettlementWarning] = useState<string | null>(null);
   const amountRaw = useMemo(() => invoiceAmountRaw(invoice), [invoice]);
   const merchantAddress = invoice.merchant.walletAddress;
   const token = ARCPASS_TOKENS[invoice.token];
@@ -189,6 +194,7 @@ export function ArcPaymentPanel({
       setPayer(null);
       setNetworkReady(false);
       setReceiptError(null);
+      setSettlementWarning(null);
       setRecoveryError(null);
       setRecoveryStatus("idle");
       setStatus("idle");
@@ -241,6 +247,7 @@ export function ArcPaymentPanel({
       await refreshBalance(address);
       setError(null);
       setReceiptError(null);
+      setSettlementWarning(null);
       setStatus("ready");
       setRecoveryStatus("recovered");
     } catch (err) {
@@ -273,6 +280,7 @@ export function ArcPaymentPanel({
     setStatus("paying");
     setError(null);
     setReceiptError(null);
+    setSettlementWarning(null);
     setVerifiedReceipt(null);
 
     try {
@@ -315,6 +323,7 @@ export function ArcPaymentPanel({
       setVerifiedReceipt(verified);
       setPublicReceipt(verified);
       saveVerifiedReceipt({ invoice, payload, publicReference, receipt: verified });
+      if (verified.serverSaved === false) setSettlementWarning(verified.warning ?? "Payment is verified on Arc, but the shared merchant receipt is still being recorded. Do not pay again.");
       setStatus("paid");
     } catch (err) {
       setError(walletErrorMessage(err));
@@ -344,6 +353,7 @@ export function ArcPaymentPanel({
     setStatus("verifying");
     setError(null);
     setReceiptError(null);
+    setSettlementWarning(null);
     setTxHash(hash as Hash);
     setVerifiedReceipt(null);
 
@@ -352,6 +362,7 @@ export function ArcPaymentPanel({
       setVerifiedReceipt(verified);
       setPublicReceipt(verified);
       saveVerifiedReceipt({ invoice, payload, publicReference, receipt: verified });
+      if (verified.serverSaved === false) setSettlementWarning(verified.warning ?? "Payment is verified on Arc, but the shared merchant receipt is still being recorded. Do not pay again.");
       setStatus("paid");
     } catch (err) {
       setError(walletErrorMessage(err));
@@ -360,20 +371,33 @@ export function ArcPaymentPanel({
   }
 
   async function verifyPayment(hash: Hash, payerAddress?: Address) {
-    const res = await fetch("/api/payments/verify", {
-      body: JSON.stringify({ ...(payerAddress ? { payer: payerAddress } : {}), payload, txHash: hash }),
-      headers: { "content-type": "application/json" },
-      method: "POST",
+    if (!payerAddress) throw new Error("Connect the buyer wallet before verifying a receipt.");
+    const provider = await getBrowserWalletProvider();
+    const signer = createWalletClient({ account: payerAddress, chain: arcTestnet, transport: custom(provider) });
+    const receiptSignature = await signer.signMessage({
+      account: payerAddress,
+      message: paymentVerificationMessage({ invoice, payer: payerAddress, txHash: hash }),
     });
-    const body = await res.json();
 
-    if (!res.ok || !body.verified) {
-      const message = body.error || "Payment was submitted, but ArcPass could not verify the receipt.";
-      setReceiptError(message);
-      throw new Error(message);
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const res = await fetch("/api/payments/verify", {
+        body: JSON.stringify({ payer: payerAddress, payload, receiptSignature, txHash: hash }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      });
+      const body = (await res.json().catch(() => null)) as (Partial<VerifiedReceipt> & { error?: string }) | null;
+      if (!res.ok && !body?.verified) {
+        const message = body?.error || "Payment was submitted, but ArcPass could not verify the receipt.";
+        setReceiptError(message);
+        throw new Error(message);
+      }
+
+      const verified = body as VerifiedReceipt;
+      if (verified.serverSaved !== false || attempt === 2) return verified;
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 900 * (attempt + 1)));
     }
 
-    return body as VerifiedReceipt;
+    throw new Error("Payment verification did not return a receipt.");
   }
 
   return (
@@ -442,6 +466,7 @@ export function ArcPaymentPanel({
               {publicReceipt ? (
                 <p className="arcpass-checkout-warning">This invoice already has a verified receipt.</p>
               ) : null}
+              {settlementWarning ? <p className="arcpass-checkout-warning" role="alert">{settlementWarning}</p> : null}
               {isLoadingPublicState ? (
                 <p className="arcpass-muted">Confirming ArcPass invoice registration.</p>
               ) : isRegistered !== true ? (

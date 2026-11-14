@@ -1,4 +1,4 @@
-import { createPublicClient, type Address, type Hex } from "viem";
+import { createPublicClient, verifyMessage, type Address, type Hex } from "viem";
 import { arcTestnet, arcTestnetTransport } from "./arc-chain.ts";
 
 const client = createPublicClient({
@@ -19,5 +19,8 @@ export async function verifyArcWalletMessage({
   message: string;
   signature: Hex;
 }) {
+  // EOAs do not need an RPC request. Only fall through to the public client
+  // for contract accounts, where viem performs the ERC-1271 check on Arc.
+  if (await verifyMessage({ address, message, signature })) return true;
   return client.verifyMessage({ address, message, signature });
 }
