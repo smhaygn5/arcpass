@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
-import { getAddress, isAddress, verifyMessage, type Address, type Hex } from "viem";
+import { getAddress, isAddress, type Address, type Hex } from "viem";
 import type { NextRequest, NextResponse } from "next/server";
 import { databaseConfigured, getDatabase, requirePersistentDatabase } from "./server-database.ts";
+import { verifyArcWalletMessage } from "./server-signatures.ts";
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
@@ -91,7 +92,7 @@ export async function verifyMerchantChallenge({
     throw new Error("Merchant session challenge is expired or invalid.");
   }
 
-  const verified = await verifyMessage({
+  const verified = await verifyArcWalletMessage({
     address: normalizedAddress,
     message,
     signature: signature as Hex,

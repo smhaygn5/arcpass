@@ -12,7 +12,7 @@ import { DisputeEvidenceRoom } from "@/components/DisputeEvidenceRoom";
 
 type ReceiptState = "loading" | "ready" | "unavailable";
 
-export function PublicPaymentReceipt({ invoice, payload }: { invoice: ArcPassInvoice; payload: string }) {
+export function PublicPaymentReceipt({ invoice, publicReference }: { invoice: ArcPassInvoice; publicReference: string }) {
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<PublicPaymentReceipt | null>(null);
   const [refundError, setRefundError] = useState<string | null>(null);
@@ -20,13 +20,13 @@ export function PublicPaymentReceipt({ invoice, payload }: { invoice: ArcPassInv
   const [refundRequest, setRefundRequest] = useState<RefundRequest | null>(null);
   const [isRequestingRefund, setIsRequestingRefund] = useState(false);
   const [state, setState] = useState<ReceiptState>("loading");
-  const checkoutLink = `/pay/${encodeURIComponent(payload)}`;
-  const receiptLink = publicPaymentReceiptLink(payload);
+  const checkoutLink = `/pay/${encodeURIComponent(publicReference)}`;
+  const receiptLink = publicPaymentReceiptLink(publicReference);
 
   useEffect(() => {
     async function loadReceipt() {
       try {
-        const res = await fetch(`/api/public-invoice-state?payload=${encodeURIComponent(payload)}`, { cache: "no-store" });
+        const res = await fetch(`/api/public-invoice-state?ref=${encodeURIComponent(publicReference)}`, { cache: "no-store" });
         const body = (await res.json().catch(() => null)) as { paid?: boolean; receipt?: unknown; registered?: boolean; error?: string } | null;
         if (!res.ok || body?.registered !== true || body?.paid !== true || !isReceiptForInvoice(body.receipt, invoice)) {
           throw new Error(body?.error || "A verified ArcPass receipt is not available for this invoice.");
@@ -42,7 +42,7 @@ export function PublicPaymentReceipt({ invoice, payload }: { invoice: ArcPassInv
       }
     }
     void loadReceipt();
-  }, [invoice, payload]);
+  }, [invoice, publicReference]);
 
   async function shareReceipt() {
     try {

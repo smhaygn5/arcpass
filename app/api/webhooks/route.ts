@@ -58,7 +58,21 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Webhook operation failed." }, { status: 400 });
+    const message = error instanceof Error ? error.message : "";
+    const validationError = [
+      "Choose at least one webhook event.",
+      "Enter a valid HTTPS webhook URL.",
+      "Webhook URL must be",
+      "Webhook endpoints must use",
+      "Webhook endpoint id is invalid.",
+      "Webhook endpoint must",
+      "Each merchant workspace can",
+      "This webhook URL is already",
+    ].some((prefix) => message.startsWith(prefix));
+    if (validationError) return NextResponse.json({ error: message }, { status: 400 });
+
+    console.error("ArcPass webhook operation failed.", error);
+    return NextResponse.json({ error: "Webhook operation could not be completed." }, { status: 500 });
   }
 }
 

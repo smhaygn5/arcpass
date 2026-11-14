@@ -88,9 +88,11 @@ type VerifiedReceipt = {
 export function ArcPaymentPanel({
   invoice,
   payload,
+  publicReference = payload,
 }: {
   invoice: ArcPassInvoice;
   payload: string;
+  publicReference?: string;
 }) {
   const [balance, setBalance] = useState<bigint | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -142,7 +144,7 @@ export function ArcPaymentPanel({
       setPublicStateError(null);
 
       try {
-        const res = await fetch(`/api/public-invoice-state?payload=${encodeURIComponent(payload)}`, {
+        const res = await fetch(`/api/public-invoice-state?ref=${encodeURIComponent(publicReference)}`, {
           cache: "no-store",
         });
         const body = (await res.json().catch(() => null)) as
@@ -168,7 +170,7 @@ export function ArcPaymentPanel({
     }
 
     void loadPublicInvoiceState();
-  }, [payload]);
+  }, [publicReference]);
 
   useEffect(() => {
     if (!payer) return;
@@ -312,7 +314,7 @@ export function ArcPaymentPanel({
       await refreshBalance(address);
       setVerifiedReceipt(verified);
       setPublicReceipt(verified);
-      saveVerifiedReceipt({ invoice, payload, receipt: verified });
+      saveVerifiedReceipt({ invoice, payload, publicReference, receipt: verified });
       setStatus("paid");
     } catch (err) {
       setError(walletErrorMessage(err));
@@ -323,6 +325,11 @@ export function ArcPaymentPanel({
   async function verifyExistingReceipt() {
     if (isRegistered !== true) {
       setReceiptError("ArcPass could not confirm this invoice registration.");
+      setStatus("error");
+      return;
+    }
+    if (!payer) {
+      setReceiptError("Connect the buyer wallet before verifying a payment receipt.");
       setStatus("error");
       return;
     }
@@ -341,10 +348,10 @@ export function ArcPaymentPanel({
     setVerifiedReceipt(null);
 
     try {
-      const verified = await verifyPayment(hash as Hash, payer ?? undefined);
+      const verified = await verifyPayment(hash as Hash, payer);
       setVerifiedReceipt(verified);
       setPublicReceipt(verified);
-      saveVerifiedReceipt({ invoice, payload, receipt: verified });
+      saveVerifiedReceipt({ invoice, payload, publicReference, receipt: verified });
       setStatus("paid");
     } catch (err) {
       setError(walletErrorMessage(err));
@@ -631,7 +638,7 @@ export function ArcPaymentPanel({
                 <Detail label="Merchant" value={shortAddress(verifiedReceipt.merchant)} />
                 <Detail label="Block" value={verifiedReceipt.blockNumber} />
               </div>
-              <a href={publicPaymentReceiptLink(payload)} className="arcpass-ghost-button">Open payment receipt</a>
+              <a href={publicPaymentReceiptLink(publicReference)} className="arcpass-ghost-button">Open payment receipt</a>
             </div>
           ) : null}
 

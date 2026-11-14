@@ -78,10 +78,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Transaction hash is invalid." }, { status: 400 });
   }
 
-  const payer =
-    typeof body?.payer === "string" && isAddress(body.payer)
-      ? getAddress(body.payer)
-      : null;
+  if (typeof body?.payer !== "string" || !isAddress(body.payer)) {
+    return NextResponse.json({ error: "Connect the buyer wallet before verifying a payment." }, { status: 400 });
+  }
+  const payer = getAddress(body.payer);
   const token = ARCPASS_TOKENS[invoice.token];
   const expectedAmount = invoiceAmountRaw(invoice);
   const expectedMerchant = getAddress(invoice.merchant.walletAddress);
@@ -192,7 +192,7 @@ export async function POST(req: NextRequest) {
       if (getAddress(log.address) !== getAddress(token.address)) return false;
       if (!args.to || getAddress(args.to) !== expectedMerchant) return false;
       if (args.value !== expectedAmount) return false;
-      if (payer && (!args.from || getAddress(args.from) !== payer)) return false;
+      if (!args.from || getAddress(args.from) !== payer) return false;
       return true;
     });
 
@@ -239,7 +239,6 @@ export async function POST(req: NextRequest) {
       await saveServerReceipt({
         invoice,
         origin: getRequestOrigin(req.nextUrl.origin),
-        payload,
         receipt: verifiedReceipt,
       });
       serverSaved = true;

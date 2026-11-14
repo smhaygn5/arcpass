@@ -1,11 +1,12 @@
 import { after, NextRequest, NextResponse } from "next/server";
-import { getAddress, isAddress, verifyMessage, type Hex } from "viem";
+import { getAddress, isAddress, type Hex } from "viem";
 import { decodeInvoicePayload } from "@/lib/arcpass";
 import { clientKey, rateLimit, tooManyRequests } from "@/lib/rate-limit";
 import { extractInvoicePayload } from "@/lib/receipts";
 import { normalizeRefundReason, refundRequestMessage } from "@/lib/refunds";
 import { disputeDecisionMessage, normalizeDisputeStatement } from "@/lib/disputes";
 import { requireMerchantSession } from "@/lib/server-merchant-session";
+import { verifyArcWalletMessage } from "@/lib/server-signatures";
 import { findServerReceiptByTxHash } from "@/lib/server-receipts";
 import { createServerRefundRequest, findServerRefundRequest, findServerRefundRequestById, loadServerRefundRequests, updateServerRefundRequest } from "@/lib/server-refunds";
 import { publishServerWebhookEvent } from "@/lib/server-webhooks";
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
     if (!invoice || invoice.invoiceId !== receipt.invoiceId) return NextResponse.json({ error: "The registered invoice could not be verified." }, { status: 409 });
     if (invoice.merchant.refundPolicy === "none") return NextResponse.json({ error: "This merchant passport does not offer a refund request policy." }, { status: 409 });
     const message = refundRequestMessage({ invoiceId: receipt.invoiceId, payer: receipt.payer, reason, txHash: receipt.txHash });
-    const verified = await verifyMessage({ address: receipt.payer, message, signature: signature as Hex });
+    const verified = await verifyArcWalletMessage({ address: receipt.payer, message, signature: signature as Hex });
     if (!verified) return NextResponse.json({ error: "Refund request must be signed by the payer wallet." }, { status: 401 });
     const refund = await createServerRefundRequest(receipt, reason, signature as Hex);
     after(() => publishServerWebhookEvent({
@@ -92,7 +93,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Decision note is invalid." }, { status: 400 });
   }
   const message = disputeDecisionMessage({ invoiceId: current.invoiceId, note, requestId, signer: normalizedMerchant, status, txHash: current.txHash });
-  const verified = await verifyMessage({ address: normalizedMerchant, message, signature: signature as Hex }).catch(() => false);
+  const verified = await verifyArcWalletMessage({ address: normalizedMerchant, message, signature: signature as Hex }).catch(() => false);
   if (!verified) return NextResponse.json({ error: "Merchant decision signature could not be verified." }, { status: 401 });
   const decidedAt = new Date().toISOString();
   const refund = await updateServerRefundRequest({

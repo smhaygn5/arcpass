@@ -488,31 +488,48 @@ function isWebhookEventEnvelope(value: unknown): value is WebhookEventEnvelope {
   );
 }
 
-function encryptionKey() {
-  const configured = process.env.ARCPASS_WEBHOOK_ENCRYPTION_KEY?.trim();
+function encryptionKey(version = activeEncryptionKeyVersion()) {
+  const configured = encryptionKeyMaterial(version);
   if (!configured || configured.length < 32) {
-    throw new Error("ARCPASS_WEBHOOK_ENCRYPTION_KEY must contain at least 32 characters before webhooks can be configured.");
+    throw new Error(`Webhook encryption key ${version} is not configured or is too short.`);
   }
   return createHash("sha256").update(configured).digest();
 }
 
 function encryptWebhookSecret(secret: string) {
+  const version = activeEncryptionKeyVersion();
   const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
+  const cipher = createCipheriv("aes-256-gcm", encryptionKey(version), iv);
   const encrypted = Buffer.concat([cipher.update(secret, "utf8"), cipher.final()]);
-  return [iv, cipher.getAuthTag(), encrypted].map((part) => part.toString("base64url")).join(".");
+  return [version, iv, cipher.getAuthTag(), encrypted].map((part) => Buffer.isBuffer(part) ? part.toString("base64url") : part).join(".");
 }
 
 function decryptWebhookSecret(value: string) {
   const parts = value.split(".");
-  if (parts.length !== 3) throw new Error("Stored webhook signing secret is invalid.");
-  const [ivValue = "", tagValue = "", encryptedValue = ""] = parts;
-  const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), Buffer.from(ivValue, "base64url"));
+  // Three segments were written before key versions were introduced. Treat
+  // them as v1 so existing endpoints continue working during rotation.
+  const [version, ivValue, tagValue, encryptedValue] = parts.length === 3
+    ? ["v1", parts[0] ?? "", parts[1] ?? "", parts[2] ?? ""]
+    : parts.length === 4
+      ? [parts[0] ?? "", parts[1] ?? "", parts[2] ?? "", parts[3] ?? ""]
+      : [];
+  if (!version || !ivValue || !tagValue || !encryptedValue) throw new Error("Stored webhook signing secret is invalid.");
+  const decipher = createDecipheriv("aes-256-gcm", encryptionKey(version), Buffer.from(ivValue, "base64url"));
   decipher.setAuthTag(Buffer.from(tagValue, "base64url"));
   return Buffer.concat([
     decipher.update(Buffer.from(encryptedValue, "base64url")),
     decipher.final(),
   ]).toString("utf8");
+}
+
+function activeEncryptionKeyVersion() {
+  return process.env.ARCPASS_WEBHOOK_ENCRYPTION_KEY_V2?.trim() ? "v2" : "v1";
+}
+
+function encryptionKeyMaterial(version: string) {
+  if (version === "v1") return process.env.ARCPASS_WEBHOOK_ENCRYPTION_KEY?.trim();
+  if (version === "v2") return process.env.ARCPASS_WEBHOOK_ENCRYPTION_KEY_V2?.trim();
+  return undefined;
 }
 
 async function resolveWebhookDestination(value: string) {

@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Check ArcPass health
         env:
-          HEALTH_URL: https://arcpass-six.vercel.app/api/health/arc
+          HEALTH_URL: ${{ vars.ARCPASS_HEALTH_URL || 'https://arcpass-six.vercel.app/api/health/arc' }}
         run: |
           response="$(curl --fail --silent --show-error --retry 3 --retry-all-errors --max-time 20 "$HEALTH_URL")"
           echo "$response" | jq --exit-status '.ok == true and .network == "Arc Testnet" and .chainId == 5042002 and .database == "connected"' >/dev/null

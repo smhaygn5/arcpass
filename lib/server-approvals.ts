@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
-import { getAddress, isAddress, verifyMessage, type Address, type Hex } from "viem";
+import { getAddress, isAddress, type Address, type Hex } from "viem";
 import { decodeInvoicePayload, invoiceExpired, type ArcPassInvoice } from "./arcpass.ts";
 import { createSavedInvoice, type SavedInvoice } from "./invoices.ts";
 import { databaseConfigured, getDatabase } from "./server-database.ts";
+import { verifyArcWalletMessage } from "./server-signatures.ts";
 import { saveServerInvoice } from "./server-invoices.ts";
 import { loadServerTeamWorkspace } from "./server-team.ts";
 import {
@@ -114,7 +115,7 @@ export async function approveServerRequest({ address, requestId, signature, orig
   const workspace = await loadServerTeamWorkspace(request.merchant);
   const member = workspace.members.find((candidate) => candidate.walletAddress.toLowerCase() === approver.toLowerCase());
   if (approver.toLowerCase() !== request.merchant.toLowerCase() && member?.role !== "approver") throw new Error("This wallet does not have the Approver role.");
-  const verified = await verifyMessage({ address: approver, message: approvalRequestMessage(request), signature: signature as Hex });
+  const verified = await verifyArcWalletMessage({ address: approver, message: approvalRequestMessage(request), signature: signature as Hex });
   if (!verified) throw new Error("Approval signature could not be verified.");
   return databaseConfigured()
     ? approveDatabaseRequest({ approver, origin, requestId, signature })

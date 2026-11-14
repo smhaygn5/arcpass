@@ -1,5 +1,5 @@
 import { after, NextRequest, NextResponse } from "next/server";
-import { getAddress, isAddress, verifyMessage, type Hex } from "viem";
+import { getAddress, isAddress, type Hex } from "viem";
 import {
   disputeEvidenceMessage,
   normalizeDisputeStatement,
@@ -10,6 +10,7 @@ import {
 import { clientKey, rateLimit, tooManyRequests } from "@/lib/rate-limit";
 import { createServerDisputeEvidence, loadServerDisputeEvidence } from "@/lib/server-disputes";
 import { requireMerchantSession } from "@/lib/server-merchant-session";
+import { verifyArcWalletMessage } from "@/lib/server-signatures";
 import { findServerRefundRequest, findServerRefundRequestById } from "@/lib/server-refunds";
 import { publishServerWebhookEvent } from "@/lib/server-webhooks";
 
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
     const evidenceUrl = normalizeEvidenceUrl(typeof body?.evidenceUrl === "string" ? body.evidenceUrl : "");
     const evidenceSha256 = normalizeEvidenceSha256(typeof body?.evidenceSha256 === "string" ? body.evidenceSha256 : "");
     const message = disputeEvidenceMessage({ evidenceSha256, evidenceUrl, invoiceId: refund.invoiceId, requestId, role, signer: normalizedSigner, statement, txHash: refund.txHash });
-    const verified = await verifyMessage({ address: normalizedSigner, message, signature: signature as Hex });
+    const verified = await verifyArcWalletMessage({ address: normalizedSigner, message, signature: signature as Hex });
     if (!verified) return NextResponse.json({ error: "Evidence signature could not be verified." }, { status: 401 });
 
     const evidence = await createServerDisputeEvidence({ evidenceSha256, evidenceUrl, refund, role, signature: signature as Hex, signer: normalizedSigner, statement });

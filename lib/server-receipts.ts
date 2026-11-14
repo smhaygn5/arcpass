@@ -63,21 +63,23 @@ export async function findServerReceiptByTxHash(txHash: string) {
 export async function saveServerReceipt({
   invoice,
   origin,
-  payload,
+  payload: _legacyPayload,
   receipt,
 }: {
   invoice: ArcPassInvoice;
   origin: string;
-  payload: string;
+  /** Retained for compatibility with older callers; never placed in a URL. */
+  payload?: string;
   receipt: VerifiedReceiptPayload;
 }) {
+  void _legacyPayload;
   const saved: SavedReceipt = {
     amount: receipt.amount,
     blockNumber: receipt.blockNumber,
     description: invoice.description,
     explorerUrl: receipt.explorerUrl,
     invoiceId: receipt.invoiceId,
-    link: `${origin.replace(/\/$/, "")}/pay/${payload}`,
+    link: `${origin.replace(/\/$/, "")}/pay/${invoice.invoiceId}`,
     merchant: receipt.merchant,
     paidAt: new Date().toISOString(),
     payer: receipt.payer,

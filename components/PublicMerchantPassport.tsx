@@ -16,24 +16,24 @@ type PublicState = "checking" | "verified" | "unverified";
 
 export function PublicMerchantPassport({
   invoice,
-  payload,
+  publicReference,
 }: {
   invoice: ArcPassInvoice;
-  payload: string;
+  publicReference: string;
 }) {
   const [state, setState] = useState<PublicState>("checking");
   const score = trustScore(invoice.merchant);
 
   useEffect(() => {
     let active = true;
-    void fetch(`/api/public-invoice-state?payload=${encodeURIComponent(payload)}`, { cache: "no-store" })
+    void fetch(`/api/public-invoice-state?ref=${encodeURIComponent(publicReference)}`, { cache: "no-store" })
       .then(async (response) => {
         const body = (await response.json().catch(() => null)) as { registered?: boolean } | null;
         if (active) setState(response.ok && body?.registered === true ? "verified" : "unverified");
       })
       .catch(() => { if (active) setState("unverified"); });
     return () => { active = false; };
-  }, [payload]);
+  }, [publicReference]);
 
   return (
     <main className="arcpass-page arcpass-public-passport-page">
@@ -89,7 +89,7 @@ export function PublicMerchantPassport({
               <p className="arcpass-panel-label">Verified payment link</p>
               <h3>{invoice.description}</h3>
               <p className="arcpass-muted">This checkout keeps the amount, token, merchant wallet, expiry{invoice.installment ? ", and installment position" : invoice.recurring ? ", recurring schedule, and cycle position" : ""} in its invoice lock.</p>
-              <a className="arcpass-dark-button" href={`/pay/${payload}`}>Open verified checkout</a>
+              <a className="arcpass-dark-button" href={`/pay/${encodeURIComponent(publicReference)}`}>Open verified checkout</a>
             </section>
           </>
         ) : null}

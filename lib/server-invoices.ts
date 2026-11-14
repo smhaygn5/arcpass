@@ -1,7 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { getAddress, isAddress } from "viem";
-import type { ArcPassInvoice } from "./arcpass.ts";
+import { decodeInvoicePayload, type ArcPassInvoice } from "./arcpass.ts";
 import { databaseConfigured, getDatabase } from "./server-database.ts";
 import { createSavedInvoice, isSavedInvoice, merchantMatchesInvoice, mergeSavedInvoices, type SavedInvoice } from "./invoices.ts";
 
@@ -72,6 +72,19 @@ export async function findServerInvoiceByPayload({
   ) ?? null;
 }
 
+/** Resolve opaque invoice ids. Legacy encoded payload links remain readable. */
+export async function findServerInvoiceByReference(reference: string) {
+  if (/^inv_[a-f0-9]{16}$/i.test(reference)) return findServerInvoiceById(reference);
+
+  const invoice = decodeInvoicePayload(reference);
+  if (!invoice) return null;
+  return findServerInvoiceByPayload({
+    invoiceId: invoice.invoiceId,
+    merchant: invoice.merchant.walletAddress,
+    payload: reference,
+  });
+}
+
 export async function saveServerInvoice({
   invoice,
   origin,
@@ -139,6 +152,22 @@ async function loadDatabaseInvoices({ limit, merchant }: { limit: number; mercha
   return Array.from(rows)
     .map((row) => invoiceFromRow(row as InvoiceRow))
     .filter((invoice): invoice is SavedInvoice => Boolean(invoice));
+}
+
+async function findServerInvoiceById(invoiceId: string) {
+  if (databaseConfigured()) {
+    const sql = getDatabase();
+    const rows = await sql`
+      select invoice, link, payload
+      from arcpass_invoices
+      where invoice_id = ${invoiceId}
+      limit 1
+    `;
+    return rows[0] ? invoiceFromRow(rows[0] as InvoiceRow) : null;
+  }
+
+  const invoices = await readFileLedger();
+  return invoices.find((item) => item.invoice.invoiceId === invoiceId) ?? null;
 }
 
 function invoiceFromRow(row: InvoiceRow) {

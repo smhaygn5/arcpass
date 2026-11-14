@@ -80,10 +80,12 @@ export function mergeSavedReceipts(groups: SavedReceipt[][], limit = 24): SavedR
 export function saveVerifiedReceipt({
   invoice,
   payload,
+  publicReference = payload,
   receipt,
 }: {
   invoice: ArcPassInvoice;
   payload: string;
+  publicReference?: string;
   receipt: VerifiedReceiptPayload;
 }): SavedReceipt[] {
   if (typeof window === "undefined") return [];
@@ -94,7 +96,7 @@ export function saveVerifiedReceipt({
     description: invoice.description,
     explorerUrl: receipt.explorerUrl,
     invoiceId: receipt.invoiceId,
-    link: `${window.location.origin}/pay/${payload}`,
+    link: `${window.location.origin}/pay/${publicReference}`,
     merchant: receipt.merchant,
     paidAt: new Date().toISOString(),
     payer: receipt.payer,

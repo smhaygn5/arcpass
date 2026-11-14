@@ -151,10 +151,31 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     const status = error instanceof CircleApiError ? error.status : 400;
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "The email wallet request could not be completed." },
+      {
+        // Input validators and CircleApiError provide intentionally bounded
+        // messages. Avoid exposing an arbitrary server exception to a wallet
+        // client that may display it verbatim.
+        error: error instanceof CircleApiError
+          ? error.message
+          : safeEmbeddedWalletError(error),
+      },
       { status: status >= 400 && status < 500 ? status : 502 },
     );
   }
+}
+
+function safeEmbeddedWalletError(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  const validationError = [
+    "Enter a valid email address.",
+    "The wallet device could not be verified.",
+    "The email wallet session is invalid or expired.",
+    "The Circle wallet identifier is invalid.",
+    "The wallet signature message is invalid.",
+  ].some((prefix) => message.startsWith(prefix));
+  if (validationError) return message;
+  console.error("ArcPass embedded wallet request failed.", error);
+  return "The email wallet request could not be completed.";
 }
 
 function circleConfig() {

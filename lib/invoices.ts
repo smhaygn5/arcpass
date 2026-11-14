@@ -26,7 +26,9 @@ export function createSavedInvoice({
   const payload = encodeInvoicePayload(invoice);
   return {
     invoice,
-    link: `${origin.replace(/\/$/, "")}/pay/${payload}`,
+    // Keep the verified payload on the server. Browser URLs must carry only
+    // the opaque invoice id so invoice details do not reach history or referrer logs.
+    link: `${origin.replace(/\/$/, "")}/pay/${invoice.invoiceId}`,
     payload,
   };
 }
@@ -34,10 +36,10 @@ export function createSavedInvoice({
 export function merchantPassportLink(invoice: SavedInvoice) {
   try {
     const url = new URL(invoice.link);
-    url.pathname = `/passport/${invoice.payload}`;
+    url.pathname = `/passport/${invoice.invoice.invoiceId}`;
     return url.toString();
   } catch {
-    return `/passport/${invoice.payload}`;
+    return `/passport/${invoice.invoice.invoiceId}`;
   }
 }
 

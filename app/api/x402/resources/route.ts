@@ -86,5 +86,22 @@ export async function PATCH(req: NextRequest) {
 function serverError(error: unknown, fallback: string) {
   const message = error instanceof Error ? error.message : fallback;
   const unavailable = /DATABASE_URL|persistent database/i.test(message);
-  return NextResponse.json({ error: unavailable ? "Persistent storage is not configured for this deployment." : message }, { status: unavailable ? 503 : 400 });
+  // Validation errors in lib/x402 are deliberately safe for users to see. Do
+  // not pass database, RPC, or unexpected runtime errors through this route.
+  const validationError = [
+    "Access expiry must be",
+    "Nanopayment resource is invalid.",
+    "Price must be",
+    "Protected response must",
+    "Resource name must be",
+    "Description must be",
+    "Usage limit must be",
+  ].some((prefix) => message.startsWith(prefix));
+  if (unavailable) {
+    return NextResponse.json({ error: "Persistent storage is not configured for this deployment." }, { status: 503 });
+  }
+  if (validationError) return NextResponse.json({ error: message }, { status: 400 });
+
+  console.error("ArcPass x402 resource request failed.", error);
+  return NextResponse.json({ error: fallback }, { status: 500 });
 }

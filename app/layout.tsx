@@ -2,6 +2,9 @@
 import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE } from "@/lib/site";
 import "./globals.css";
 
+// CSP nonces are issued by proxy.ts, so pages must render per request.
+export const dynamic = "force-dynamic";
+
 const siteUrl = getSiteUrl();
 
 export const metadata: Metadata = {
